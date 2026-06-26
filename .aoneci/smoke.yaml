@@ -24,15 +24,11 @@ jobs:
           pip3 --version
           bash --version | head -n1
 
-      - id: install-deps
+      - id: smoke
         run: |
           set -euxo pipefail
           pip3 install --no-cache-dir \
             -i https://mirrors.aliyun.com/pypi/simple/ \
             --trusted-host mirrors.aliyun.com \
             pyyaml Pillow
-
-      - id: smoke
-        run: |
-          set -euo pipefail
           bash tests/smoke-test.sh
