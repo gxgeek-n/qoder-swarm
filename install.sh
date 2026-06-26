@@ -39,16 +39,13 @@ chmod +x "$QODER_HOME/scripts/"*.py 2>/dev/null || true
 echo "  ✓ Scripts installed"
 
 # 5. Skills (auto-triggered by description matching - PRIMARY mechanism)
-mkdir -p "$QODER_HOME/skills"
-SKILL_COUNT=0
-for skill_dir in "$SCRIPT_DIR/skills"/*/; do
-  [ -d "$skill_dir" ] || continue
-  skill_name=$(basename "$skill_dir")
-  mkdir -p "$QODER_HOME/skills/$skill_name"
-  cp -r "$skill_dir"* "$QODER_HOME/skills/$skill_name/"
-  SKILL_COUNT=$((SKILL_COUNT + 1))
+mkdir -p "$QODER_HOME/skills/swarm"
+# Clean any stale per-pattern skills from older installs
+for old in plan-and-review five-agent-review start-work remove-ai-slops init-deep ultraresearch debugging teammode ulw-loop visual-qa-strict; do
+  rm -rf "$QODER_HOME/skills/$old" 2>/dev/null
 done
-echo "  ✓ Skills installed ($SKILL_COUNT skills)"
+cp -r "$SCRIPT_DIR/skills/swarm/"* "$QODER_HOME/skills/swarm/"
+echo "  ✓ Skill installed: swarm (1 router + $(ls "$SCRIPT_DIR/skills/swarm/references/" | wc -l | tr -d ' ') reference docs)"
 
 # 6. Auto-register hooks into settings.json (idempotent, with backup)
 echo ""
