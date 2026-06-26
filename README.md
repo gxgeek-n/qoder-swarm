@@ -210,6 +210,41 @@ If you want to keep `~/.qoder/agents/swarm-*.md` clean (for easy upgrades), use 
 
 This persists across `bash install.sh` re-runs.
 
+## Testing
+
+Run the smoke-test against a throwaway `QODER_HOME`. It leaves no trace on your real `~/.qoder/`:
+
+```bash
+bash tests/smoke-test.sh           # 37 checks, ~5 seconds
+bash tests/smoke-test.sh --keep    # leave the tmpdir for inspection
+bash tests/smoke-test.sh --verbose # print every command
+```
+
+What it covers (37 assertions across 8 sections):
+
+| Section | Checks |
+|---------|--------|
+| Installer auxiliary commands | `--help` / `--version` / `--doctor`, rejects unknown options |
+| Fresh install | exit 0, all expected dirs/files created |
+| File layout | 10 workflows, 2 hooks (executable), image-diff.py, SKILL.md, 11 references, marker file, 5 swarm-* agents, dispatch templates, settings.json |
+| settings.json sanity | valid JSON, hook paths resolve under `QODER_HOME` (not hardcoded `~/.qoder/`) |
+| Agent frontmatter | YAML parses for every swarm-* agent, required fields present |
+| image-diff.py | output is valid JSON, similarity / diffPixels / hotspots match a known fixture |
+| Idempotency | re-run produces no duplicate hooks, prints "Nothing to do", **preserves unrelated user hooks** and arbitrary `customField` |
+| Uninstall round-trip | swarm hooks removed, user's other hooks intact |
+
+Exit code = number of failed checks. Use it in CI:
+
+```yaml
+# .github/workflows/test.yml
+- run: bash tests/smoke-test.sh
+```
+
+When a check fails:
+1. Re-run with `--keep --verbose` to inspect the tmpdir.
+2. Look at `$TMP_HOME/install-1.log` and `install-2.log` for installer output.
+3. The "Failed tests" summary at the end names every check that broke.
+
 ## Security Notes
 
 Read these before running `bash install.sh` from a repo you didn't write.

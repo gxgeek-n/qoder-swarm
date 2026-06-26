@@ -26,25 +26,25 @@ One skill, ten orchestration patterns. Routes by user intent to the matching ref
 
 1. **Detect pattern** from user message → pick ONE pattern name from the table above.
 2. **Read** `references/{pattern}.md` from this skill directory using the Read tool.
-3. **Follow the reference** — it specifies stages, parallel groups, model tiers, and exact Agent prompts.
+3. **Follow the reference** — it specifies stages, parallel groups, subagent types, and exact Agent prompts.
 4. **Universal rules** (apply to every pattern):
-   - Use the `Agent` tool with `subagent_type: "general-purpose"`. Do NOT use the `Workflow` tool (feature-gated on some accounts).
+   - Use the `Agent` tool with the matching `swarm-*` subagent (`swarm-explorer`, `swarm-librarian`, `swarm-planner`, `swarm-reviewer`, `swarm-worker`). See `references/_shared.md` for the role-to-subagent mapping. Fall back to Qoder built-ins (`Explore` / `Plan` / `general-purpose`) only when the `swarm-*` agents are not registered in the current session.
+   - Do NOT use the `Workflow` tool (feature-gated on some accounts).
    - Send all independent Agent calls **in a single message** to run them in parallel.
    - Each spawned agent's prompt must be self-contained: `TASK: ... DELIVERABLE: ... SCOPE: ... VERIFY: ...`
-   - Apply model tiering (see below).
    - Save state to `.swarm/{pattern}/` when the reference says so.
 
-## Model tiers (cost optimization)
+## Model tiers — handled by the subagents, not the call site
 
-Use these constants in every Agent call. Adjust if user's `/model` list differs.
+Qoder's `Agent` tool does NOT accept a `model` parameter. Per-role model selection happens in each `swarm-*` subagent's frontmatter (`model: efficient` for explorer/librarian, `model: performance` for planner/reviewer/worker). The legacy "CHEAP/MID/HEAVY" labels in reference docs map to which subagent_type you pick:
 
-| Tier | Default model | Credit | Use for |
-|------|--------------|--------|---------|
-| `CHEAP` | `Qwen3.7-Max-DogFooding` | 0.00x (FREE) | search, read-only exploration, parsing, monitoring |
-| `MID` | `GLM-5.2` | 0.60x | code editing, QA execution, integration |
-| `HEAVY` | `GLM-5.2` | 0.60x | deep reasoning, planning, adversarial review |
+| Label in references | subagent_type | Default model |
+|---------------------|---------------|---------------|
+| `CHEAP` | `swarm-explorer` or `swarm-librarian` | `efficient` |
+| `MID`   | `swarm-worker` | `performance` |
+| `HEAVY` | `swarm-planner` or `swarm-reviewer` | `performance` (high effort) |
 
-Pass model via `Agent` opts when the SDK supports it; otherwise mention the model in the prompt.
+To force specific model names (e.g. `Qwen3.7-Max-DogFooding`, `GLM-5.2`), edit the `model:` field in `~/.qoder/agents/swarm-*.md` or use `settings.json` overrides. See the project README's "Customizing swarm-* Subagents" section.
 
 ## Composability — skill calls skill
 

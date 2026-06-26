@@ -124,19 +124,25 @@ echo "  ✓ Scripts installed ($SCRIPT_COUNT files)"
 # 5. Skill — primary entry mechanism (auto-triggered by description matching)
 mkdir -p "$QODER_HOME/skills/swarm"
 
-# Clean any stale per-pattern skill directories from PRE-934a74e installs.
-# Only remove a directory if it carries the swarm marker we wrote during a
-# previous install — this protects user-created skills that happen to share
-# a name with one of our legacy patterns.
+# Clean stale per-pattern skill directories from PRE-934a74e installs.
+# We never DELETE — we archive to $QODER_HOME/.swarm-archive/<timestamp>/
+# so users can recover if the marker check ever mis-fires.
 LEGACY_SKILLS="plan-and-review five-agent-review start-work remove-ai-slops init-deep ultraresearch debugging teammode ulw-loop visual-qa-strict"
+ARCHIVE_DIR="$QODER_HOME/.swarm-archive/$(date +%Y%m%d-%H%M%S)"
+ARCHIVED=0
 for old in $LEGACY_SKILLS; do
   old_dir="$QODER_HOME/skills/$old"
   if [ -d "$old_dir" ] && [ -f "$old_dir/$SWARM_MARKER" ]; then
-    rm -rf "$old_dir"
+    [ "$ARCHIVED" -eq 0 ] && mkdir -p "$ARCHIVE_DIR"
+    mv "$old_dir" "$ARCHIVE_DIR/$old"
+    ARCHIVED=$((ARCHIVED+1))
   elif [ -d "$old_dir" ]; then
     echo "  ⚠ Found $old_dir without swarm marker — leaving alone (likely user-owned)"
   fi
 done
+if [ "$ARCHIVED" -gt 0 ]; then
+  echo "  ↳ Archived $ARCHIVED legacy per-pattern skill dir(s) to $ARCHIVE_DIR"
+fi
 
 cp -r "$SCRIPT_DIR/skills/swarm/"* "$QODER_HOME/skills/swarm/"
 touch "$QODER_HOME/skills/swarm/$SWARM_MARKER"

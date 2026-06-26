@@ -15,9 +15,13 @@
     "workflows/",
     "hooks/",
     "dispatch-kit/",
+    "tests/",
     "install.sh",
     "install-settings.py",
     "LICENSE",
     "README.md"
-  ]
+  ],
+  "scripts": {
+    "test": "bash tests/smoke-test.sh"
+  }
 }

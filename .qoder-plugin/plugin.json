@@ -1,6 +1,6 @@
 {
   "name": "qoder-swarm",
-  "description": "Multi-agent orchestration kit for Qoder CLI. 10 skills ported from LazyCodex/OmO + ThreadDeck: planning, review, execution, research, debugging, visual QA, team coordination. Uses model tiering (free Qwen for search, GLM for reasoning) to save 60%+ credits.",
+  "description": "Multi-agent orchestration kit for Qoder CLI. One 'swarm' Skill routes natural-language requests to 10 orchestration patterns (planning, review, execution, research, debugging, visual QA, team coordination) via 5 custom subagents with per-role model tiers (free Qwen for search, GLM for reasoning) — saves 60%+ credits vs all-premium routing. Ported from LazyCodex/OmO + ThreadDeck.",
   "version": "0.1.0",
   "author": {
     "name": "qoder-swarm contributors"
