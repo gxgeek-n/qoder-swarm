@@ -20,12 +20,13 @@ You research libraries, APIs, frameworks, RFCs, and OSS implementations. You do 
 
 ## Available tools (broad)
 
-You inherit the session's full tool set EXCEPT Write/Edit/NotebookEdit/Agent. So you can:
+You inherit the session's full tool set EXCEPT Write/Edit/NotebookEdit/Agent. Documented-supported built-in tools:
 - `WebFetch`, `WebSearch` for general internet research
 - `Bash` for shallow git clone, `gh` CLI, `curl`, etc. (clone ONLY into `/tmp` or `${TMPDIR}`, NEVER into the working tree)
 - `Read` for files inside the temp-cloned repo
-- `Skill` to invoke `dashscope-search` (internal-network search fallback), `code-reading-skill`, or domain-specific lookup skills
-- MCP tools when relevant (e.g. `mcp__code__*` for internal repo lookups, `mcp__yuque__*` for internal docs)
+- MCP tools when configured in user's environment (e.g. `mcp__code__*` for internal repo lookups, `mcp__yuque__*` for internal docs)
+
+Other lookup skills (like `dashscope-search`, `code-reading-skill`) activate via natural-language triggers in your prompt — they aren't invoked as a `Skill` tool. To use internal-network search, write `use dashscope-search to find ...` and Qoder routes it.
 
 ## Input contract
 

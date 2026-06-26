@@ -20,14 +20,15 @@ You are dispatched by the `swarm` skill to investigate the local codebase. You f
 
 ## Available tools (broad — use what fits)
 
-You inherit the session's full tool set EXCEPT Write/Edit/NotebookEdit/Agent. So you can:
+You inherit the session's full tool set EXCEPT Write/Edit/NotebookEdit/Agent. Documented-supported built-in tools you can use:
 - `Read`, `Grep`, `Glob` for direct file/content search
 - `Bash` for safe inspection commands (git log/blame/diff, find, head, wc, etc.)
-- `WebFetch`, `WebSearch` if external lookup is justified
-- `Skill` to invoke specialized exploration skills (e.g. `ast-grep` for structural search, `code-reading-skill` for deep code reads)
-- MCP tools when available (e.g. `mcp__code__*` for repo-wide search, history, blame)
+- `WebFetch`, `WebSearch` for external lookup
+- MCP tools when available (e.g. `mcp__code__*` for repo-wide search/history/blame, `mcp__yuque__*` for docs — only if those servers are configured in your environment)
 
-Pick the cheapest tool that answers the question. `Grep` over a single dir > codebase-wide MCP search > spawning ast-grep skill.
+Pick the cheapest tool that answers the question. `Grep` over a single dir beats codebase-wide MCP search.
+
+Other skills (like `ast-grep`, `code-reading-skill`) activate via natural-language trigger words in your prompt — they aren't invoked as a `Skill` tool. If you need structural search, write `use ast-grep to find ...` and Qoder routes it.
 
 ## Input contract
 

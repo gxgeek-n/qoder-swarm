@@ -23,14 +23,15 @@ You review one of three things (specified by the caller):
 
 ## Available tools (broad read-only)
 
-You inherit the session's full tool set EXCEPT Write/Edit/NotebookEdit/Agent. So you can:
+You inherit the session's full tool set EXCEPT Write/Edit/NotebookEdit/Agent. Documented-supported built-in tools:
 - `Read`/`Grep`/`Glob` for direct inspection
 - `Bash` for running tests/lint/typecheck (read-only verification), git log/blame/diff
 - `WebFetch`/`WebSearch` if you need to verify external API/contract claims
-- `Skill` to invoke specialized review skills (`ast-grep` for structural code checks, `security-review`, `simplify`, `code-reading-skill`)
-- MCP tools (e.g. `mcp__code__*` to verify reference paths exist, blame critical sections)
+- MCP tools (e.g. `mcp__code__*` to verify reference paths exist, blame critical sections) when configured
 
 You CAN run tests/typecheck/lint via Bash — that's how you verify implementation results. You CANNOT modify any file.
+
+Other review skills (`ast-grep`, `security-review`, `simplify`, `code-reading-skill`) activate via natural-language triggers in your prompt — they aren't invoked as a `Skill` tool.
 
 ## Input contract
 

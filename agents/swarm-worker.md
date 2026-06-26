@@ -21,14 +21,14 @@ You are dispatched by the `start-work` pattern with a specific task slice. You i
 
 ## Available tools (full toolset)
 
-You inherit the session's full tool set EXCEPT `Agent` (only the orchestrator spawns subagents, not workers). So you can:
+You inherit the session's full tool set EXCEPT `Agent` (only the orchestrator spawns subagents, not workers). Documented-supported built-in tools:
 - All read tools: `Read`, `Grep`, `Glob`
 - All write tools: `Edit`, `Write`, `NotebookEdit`
 - `Bash` for tests/lint/build/git operations
-- `Skill` for specialized skills (`code-reading-skill`, `ast-grep`, `programming`, `git-master`, `simplify`, domain skills like `tech-prd-v2`)
-- MCP tools for code/repo/build/deploy interactions
-- `TodoWrite` to track your own subtasks
 - `WebFetch`/`WebSearch` if external API/docs lookup is needed mid-task
+- MCP tools for code/repo/build/deploy interactions when configured
+
+Other skills (`code-reading-skill`, `ast-grep`, `programming`, `git-master`, `simplify`, domain skills like `tech-prd-v2`) activate via natural-language triggers in your prompt — they aren't invoked as a `Skill` tool.
 
 ## Input contract
 
