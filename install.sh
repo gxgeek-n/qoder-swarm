@@ -38,7 +38,19 @@ cp "$SCRIPT_DIR/scripts/"*.py "$QODER_HOME/scripts/" 2>/dev/null || true
 chmod +x "$QODER_HOME/scripts/"*.py 2>/dev/null || true
 echo "  ✓ Scripts installed"
 
-# 5. Auto-register hooks into settings.json (idempotent, with backup)
+# 5. Skills (auto-triggered by description matching - PRIMARY mechanism)
+mkdir -p "$QODER_HOME/skills"
+SKILL_COUNT=0
+for skill_dir in "$SCRIPT_DIR/skills"/*/; do
+  [ -d "$skill_dir" ] || continue
+  skill_name=$(basename "$skill_dir")
+  mkdir -p "$QODER_HOME/skills/$skill_name"
+  cp -r "$skill_dir"* "$QODER_HOME/skills/$skill_name/"
+  SKILL_COUNT=$((SKILL_COUNT + 1))
+done
+echo "  ✓ Skills installed ($SKILL_COUNT skills)"
+
+# 6. Auto-register hooks into settings.json (idempotent, with backup)
 echo ""
 if command -v python3 >/dev/null 2>&1; then
   python3 "$SCRIPT_DIR/install-settings.py" --qoder-home "$QODER_HOME"
