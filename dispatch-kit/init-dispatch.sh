@@ -1,6 +1,9 @@
 #!/bin/bash
-# Initialize .dispatch/ directory in the current project
+# Initialize .dispatch/ directory in the current project.
+# Idempotent: re-running preserves existing files.
 # Usage: bash init-dispatch.sh [project-root]
+
+set -euo pipefail
 
 ROOT="${1:-.}"
 
@@ -8,7 +11,7 @@ mkdir -p "$ROOT/.dispatch/inbox"
 mkdir -p "$ROOT/.dispatch/outbox"
 mkdir -p "$ROOT/.dispatch/log"
 
-# Copy registry template
+# Copy registry template only if absent
 if [ ! -f "$ROOT/.dispatch/registry.yml" ]; then
   cat > "$ROOT/.dispatch/registry.yml" << 'EOF'
 project:
@@ -42,12 +45,15 @@ EOF
   echo "Created $ROOT/.dispatch/registry.yml"
 fi
 
-# Create .gitignore for dispatch state
-cat > "$ROOT/.dispatch/.gitignore" << 'EOF'
+# Write .gitignore only if absent — preserves any user customization on re-run
+if [ ! -f "$ROOT/.dispatch/.gitignore" ]; then
+  cat > "$ROOT/.dispatch/.gitignore" << 'EOF'
 inbox/
 outbox/
 log/
 EOF
+  echo "Created $ROOT/.dispatch/.gitignore"
+fi
 
 echo "Dispatch protocol initialized at $ROOT/.dispatch/"
 echo ""

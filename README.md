@@ -21,7 +21,8 @@ Turn a single Qoder session into a multi-agent control room with model-tiered co
 ## Install
 
 ```bash
-git clone https://github.com/user/qoder-swarm.git
+# Replace the URL below with your fork's URL after publishing
+git clone <YOUR_REPO_URL> qoder-swarm
 cd qoder-swarm
 bash install.sh
 ```
@@ -208,6 +209,31 @@ If you want to keep `~/.qoder/agents/swarm-*.md` clean (for easy upgrades), use 
 ```
 
 This persists across `bash install.sh` re-runs.
+
+## Security Notes
+
+Read these before running `bash install.sh` from a repo you didn't write.
+
+**What the installer does to your system:**
+- Writes files into `$QODER_HOME` (default `~/.qoder/`) — workflows, hooks, scripts, skills, agents
+- Modifies `$QODER_HOME/settings.json` to register two hooks (backup saved as `settings.json.swarm-backup-<timestamp>`)
+- Does NOT use sudo, does NOT call out to the network, does NOT modify anything outside `$QODER_HOME`
+
+**Auditable in advance:** `bash install.sh --doctor` checks prerequisites without writing anything. `python3 install-settings.py --dry-run` shows the proposed settings.json change.
+
+**Trust model of the subagents:**
+- `swarm-explorer` / `swarm-librarian` / `swarm-reviewer` are filesystem read-only via `disallowedTools: [Write, Edit, NotebookEdit]`
+- `swarm-worker` has full write access and runs with `isolation: worktree` so changes land in a separate git worktree the orchestrator merges
+- `swarm-planner` has `Edit`/`Write` but is **prompt-enforced** to only touch `.swarm/plans/*.md`. The boundary is NOT filesystem-enforced — a maliciously crafted prompt could direct it elsewhere. Treat planner output the same way you treat any other LLM-generated code: review before relying on it.
+
+**Hostile-repo defense:**
+The `swarm-stop-continuation.sh` hook reads `.swarm/ulw-loop/state.json` and `.swarm/teams/*/team.json` from the current project and echoes a snippet to the next session. State files are **untrusted input** when they ship via a repo you didn't author. The hook sanitizes the content (control chars stripped, length capped at 80 chars, JSON parsed via `python3 -c` not regex) but the threat model is "best-effort" — if you clone a repo from a source you don't trust, delete `.swarm/` before opening a Qoder session in that directory.
+
+**Uninstall:**
+```bash
+python3 install-settings.py --uninstall    # removes only swarm hooks; user's other hooks preserved
+rm -rf ~/.qoder/skills/swarm ~/.qoder/agents/swarm-*.md   # removes the kit's files
+```
 
 ## Provenance
 
