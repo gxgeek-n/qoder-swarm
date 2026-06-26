@@ -31,9 +31,30 @@ DELIVERABLE: Markdown plan with TL;DR / Scope (Must have, Must NOT have) / Execu
 SCOPE: Write plan text only. Never edit product code.
 VERIFY:
   - Every task atomic and agent-executable
+  - Every task has machine-readable `depends_on: [T-id, ...]` field (empty array if no deps)
   - Every acceptance criterion has exact command + expected output
   - Zero further interview needed by executor
 ```
+
+### Required task schema in the plan
+
+Every task in `## Todos` must follow this shape so `start-work` can parse dependencies automatically:
+
+```markdown
+### T1: <Title>
+- **depends_on**: []          # empty array = Wave 1
+- **files**: src/foo.ts, src/foo.test.ts
+- **acceptance**: `pnpm test foo` exits 0 with all assertions green
+- **description**: <what to do, exhaustive>
+
+### T2: <Title>
+- **depends_on**: [T1]         # blocks until T1 done
+- **files**: ...
+- **acceptance**: ...
+- **description**: ...
+```
+
+This is **not** a workflow gate — the planner still decides scope, ordering, granularity. The `depends_on` field exists so the executor can compute the dependency graph mechanically instead of re-deriving it from prose.
 
 Save plan to `.swarm/plan-and-review/{slug}.md`.
 

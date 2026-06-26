@@ -7,23 +7,44 @@ Pure orchestration. **Main agent NEVER writes code.**
 If no plan exists in `.swarm/plan-and-review/` or user didn't supply a plan:
 → Run `plan-and-review.md` flow first, then continue.
 
-## Step 1 — Parse plan into waves (CHEAP × 1)
+## Step 1 — Parse plan into dependency-graph waves (CHEAP × 1)
 
 ```
 Agent[swarm-explorer]:
-TASK: Parse plan into parallel execution waves
+TASK: Parse the plan into a dependency-graph wave schedule.
 PLAN: {plan_content}
-DELIVERABLE: JSON —
-  { waves: [
-      { wave: 1, tasks: [{id, title, description, files, acceptance, depends_on: []}] },
-      { wave: 2, tasks: [...] }
-  ]}
-RULES:
-  - No-deps tasks → Wave 1
-  - Tasks depending on Wave N → Wave N+1
-  - Maximize parallelism within a wave
+
+INPUT FORMAT (each task in the plan must have):
+  ### T<n>: <Title>
+  - **depends_on**: [T-id, ...]    # empty array if no deps
+  - **files**: <paths>
+  - **acceptance**: <verifiable criterion>
+  - **description**: <details>
+
+OUTPUT (JSON, deterministic):
+  {
+    "waves": [
+      { "wave": 1, "tasks": [{"id": "T1", "title": ..., ...}] },   # tasks with depends_on == []
+      { "wave": 2, "tasks": [...] },                                # tasks all of whose deps are in Wave 1
+      ...
+    ],
+    "skipped": []   # any task with unresolved deps (cite the missing dep)
+  }
+
+ALGORITHM (apply mechanically, do not improvise):
+  1. Parse every task block, extract id + depends_on + files + acceptance + description
+  2. Build directed graph: edge from each dep → this task
+  3. Detect cycles → list in "skipped" with reason, abort
+  4. Topological sort by Kahn's algorithm:
+     - Wave 1 = all nodes with in-degree 0
+     - For each next wave: nodes whose deps all landed in earlier waves
+  5. Maximize parallelism within each wave (no further reordering)
+
 SCOPE: Analysis only. Do not edit anything.
+DELIVERABLE: The JSON above, nothing else.
 ```
+
+This is **not** a flow constraint — the planner already wrote the deps; the parser just turns them into a schedule. If the plan was written without `depends_on` fields, fall back to "one wave per task in plan order" and warn the user.
 
 ## Step 2 — Execute each wave
 

@@ -22,6 +22,43 @@ One skill, ten orchestration patterns. Routes by user intent to the matching ref
 | `teammode` | "team mode" / "make a team" / "团队模式" / "多人协作" |
 | `ulw-loop` | "ulw-loop" / "keep going" / "一直跑到完成" |
 
+### Decision diagram — pick one pattern
+
+```dot
+digraph routing {
+  rankdir=LR;
+  node [shape=box, fontname="sans-serif"];
+
+  start [shape=oval, label="user request"];
+  q_intent [shape=diamond, label="what's the intent?"];
+  q_phase [shape=diamond, label="which phase?"];
+  q_research [shape=diamond, label="research surface?"];
+  q_collab [shape=diamond, label="multi-session?"];
+
+  start -> q_intent;
+
+  q_intent -> q_phase [label="build / change code"];
+  q_intent -> q_research [label="find information"];
+  q_intent -> "debugging" [label="diagnose error"];
+  q_intent -> "remove-ai-slops" [label="clean AI smell"];
+  q_intent -> "init-deep" [label="onboard new repo"];
+  q_intent -> "visual-qa-strict" [label="UI looks wrong / CJK"];
+  q_intent -> q_collab [label="long task / team"];
+
+  q_phase -> "plan-and-review" [label="design / before code"];
+  q_phase -> "start-work" [label="execute existing plan"];
+  q_phase -> "five-agent-review" [label="after code, before merge"];
+  q_phase -> "ulw-loop" [label="iterate until criteria pass"];
+
+  q_research -> "ultraresearch" [label="exhaustive / multi-source"];
+
+  q_collab -> "teammode" [label="2+ Qoder sessions"];
+  q_collab -> "ulw-loop" [label="single session, long-running"];
+}
+```
+
+Render this with any graphviz tool (or just read the labels) — it's a visualization of the table above, not a separate gate.
+
 ## How to execute (universal flow)
 
 1. **Detect pattern** from user message → pick ONE pattern name from the table above.
