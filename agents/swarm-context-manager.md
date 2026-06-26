@@ -3,7 +3,7 @@ name: swarm-context-manager
 description: Context compression specialist for the swarm skill. Reduces accumulated context when sessions get long. Use when ulw-loop exceeds 10 iterations, when main session starts getting compaction warnings, or when a worker's context is approaching limits. Summarizes prior findings into a compact brief so the next iteration starts with clean context.
 tools: ["*"]
 disallowedTools: [Write, Edit, NotebookEdit, Agent]
-model: efficient
+model: DeepSeek-V4-Flash
 effort: low
 maxTurns: 4
 skills: [code-reading-skill]

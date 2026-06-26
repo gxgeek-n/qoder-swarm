@@ -3,7 +3,7 @@ name: swarm-error-coordinator
 description: Error recovery router for the swarm skill. Dispatched when multiple workers fail or a single worker fails repeatedly. Triages failures, identifies common root causes across workers, and recommends targeted re-dispatch or escalation. Use when start-work has 2+ failed workers in the same wave, or ulw-loop has the same criterion fail 3+ times.
 tools: ["*"]
 disallowedTools: [Write, Edit, NotebookEdit, Agent]
-model: efficient
+model: DeepSeek-V4-Flash
 effort: medium
 maxTurns: 6
 skills: [ast-grep, code-reading-skill]

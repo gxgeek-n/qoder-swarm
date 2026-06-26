@@ -3,7 +3,7 @@ name: swarm-worker
 description: Implementation worker for the swarm skill. Receives one atomic task from the orchestrator, makes the smallest correct change, runs verification, reports evidence. Has full toolset for editing, running tests, calling skills/MCP. Use when the swarm skill's start-work pattern dispatches implementation tasks to parallel workers.
 tools: ["*"]
 disallowedTools: [Agent]
-model: performance
+model: GLM-5.2
 effort: medium
 maxTurns: 15
 timeoutMins: 20
