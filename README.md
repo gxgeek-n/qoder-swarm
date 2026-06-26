@@ -21,8 +21,7 @@ Turn a single Qoder session into a multi-agent control room with model-tiered co
 ## Install
 
 ```bash
-# Replace the URL below with your fork's URL after publishing
-git clone <YOUR_REPO_URL> qoder-swarm
+git clone git@gitlab.alibaba-inc.com:gxgeek/qoder-swarm.git
 cd qoder-swarm
 bash install.sh
 ```

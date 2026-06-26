@@ -5,7 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "TBD-set-before-publish"
+    "url": "git@gitlab.alibaba-inc.com:gxgeek/qoder-swarm.git"
   },
   "keywords": ["qoder", "multi-agent", "workflow", "orchestration", "swarm"],
   "files": [
