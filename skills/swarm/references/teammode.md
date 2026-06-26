@@ -11,7 +11,7 @@ Persistent multi-session team coordination via filesystem state.
 ## Step 1 — Initialize workspace (CHEAP × 1)
 
 ```
-Agent[team-init]:
+Agent[swarm-explorer]:
 TASK: Create persistent team workspace at .swarm/teams/{name}/
 CREATE:
   - team.json: { name, goal, status: 'active', members: [...], log: [] }
@@ -30,7 +30,7 @@ DELIVERABLE: directory created, team.json written, member list
 ## Step 2 — Dispatch initial tasks (MID × 1)
 
 ```
-Agent[task-dispatcher]:
+Agent[swarm-planner]:
 TASK: Write initial task assignments to inbox/{role}.md for each member
 TEAM: read .swarm/teams/{name}/team.json
 GOAL: {goal}
@@ -72,7 +72,7 @@ Read `.swarm/teams/{name}/outbox/*.md` periodically. Report:
 When all members done:
 
 ```
-Agent[integrator]:
+Agent[swarm-worker]:
 TASK: Integrate all team member results
 INPUT: .swarm/teams/{name}/outbox/*.md + artifacts/*
 CHECK:

@@ -16,7 +16,7 @@ Read full content of each changed file (max 10). Bind as `{diff_and_files}`.
 Emit FIVE Agent calls in ONE message:
 
 ```
-Agent[goal-verifier] HEAVY:
+Agent[swarm-reviewer] HEAVY:
 TASK: Verify implementation against goal & constraints
 GOAL: {goal}
 CONSTRAINTS: {constraints}
@@ -29,7 +29,7 @@ CHECK:
   5. Edge cases (trace 5+ scenarios)
 DELIVERABLE: <verdict>PASS|FAIL</verdict> <summary> <blocking_issues>
 
-Agent[qa-executor] MID:
+Agent[swarm-worker] MID:
 TASK: QA by ACTUALLY RUNNING the code
 GOAL: {goal}
 FILES: {changed_files}
@@ -40,20 +40,20 @@ PROCESS:
   4. Try 3+ edge cases
 DELIVERABLE: <verdict>PASS|FAIL</verdict> <test_results> <blocking_issues>
 
-Agent[code-reviewer] HEAVY:
+Agent[swarm-reviewer] HEAVY:
 TASK: Code quality (senior staff engineer standard)
 CHANGES: {diff_and_files}
 CHECK 10 dimensions: correctness, pattern consistency, naming, error handling, type safety, performance, abstraction, testing, API design, tech debt
 SEVERITY: CRITICAL > MAJOR > MINOR > NITPICK
 DELIVERABLE: <verdict>PASS|FAIL</verdict> <findings categorized> <blocking_issues>CRITICAL+MAJOR only</blocking_issues>
 
-Agent[security-auditor] MID:
+Agent[swarm-reviewer] MID:
 TASK: Security only (ignore style)
 CHANGES: {diff_and_files}
 CHECK: input validation (SQL/XSS/cmd/SSRF), auth/authz, secrets, data exposure, deps with CVEs, path traversal
 DELIVERABLE: <verdict>PASS|FAIL</verdict> <severity>CRITICAL|HIGH|MEDIUM|LOW|NONE</severity> <findings>
 
-Agent[context-miner] CHEAP:
+Agent[swarm-explorer] CHEAP:
 TASK: Find missed context
 GOAL: {goal}
 CHANGED FILES: {changed_files}

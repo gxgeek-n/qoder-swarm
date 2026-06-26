@@ -5,7 +5,7 @@ Self-correcting execution loop with evidence-bound completion. Survives context 
 ## Step 1 — Bootstrap goal state (CHEAP × 1)
 
 ```
-Agent[bootstrapper]:
+Agent[swarm-explorer]:
 TASK: Create durable goal state for: {task}
 CREATE .swarm/ulw-loop/state.json:
   {
@@ -61,7 +61,7 @@ DELIVERABLE: what was done, which criterion attempted, pass or fail
 ## Step 3 — Final report (CHEAP × 1)
 
 ```
-Agent[reporter]:
+Agent[swarm-explorer]:
 TASK: Generate final ULW loop report
 INPUT: .swarm/ulw-loop/state.json + ledger.jsonl
 REPORT:

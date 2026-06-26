@@ -26,7 +26,7 @@ Capture JSON: `dimensionsMatch`, `diffRatio`, `similarityScore`, `alphaChannelIn
 Emit TWO Agent calls in ONE message:
 
 ```
-Agent[pass-A] HEAVY:
+Agent[swarm-reviewer] HEAVY:
 TASK: PASS A — design-system + functional integrity (read-only)
 ASSUMPTION: Surface MAY BE FAKED until source proves otherwise
 INTENT: {what user wanted}
@@ -47,7 +47,7 @@ DELIVERABLE:
   WHAT IS GOOD: must not regress
   BLOCKING: must fix (empty if PASS)
 
-Agent[pass-B] HEAVY:
+Agent[swarm-reviewer] HEAVY:
 TASK: PASS B — visual fidelity + CJK precision (read-only)
 INTENT: {what user wanted}
 SCREENSHOT: {actual_path}
@@ -78,7 +78,7 @@ DELIVERABLE:
 ## Step 4 — Synthesize (MID × 1)
 
 ```
-Agent[synthesizer]:
+Agent[swarm-planner]:
 TASK: Merge Pass A + Pass B into ONE verdict
 PASS A: {pass_a}
 PASS B: {pass_b}

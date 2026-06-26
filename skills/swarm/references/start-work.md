@@ -10,7 +10,7 @@ If no plan exists in `.swarm/plan-and-review/` or user didn't supply a plan:
 ## Step 1 — Parse plan into waves (CHEAP × 1)
 
 ```
-Agent[plan-parser]:
+Agent[swarm-explorer]:
 TASK: Parse plan into parallel execution waves
 PLAN: {plan_content}
 DELIVERABLE: JSON —
@@ -49,7 +49,7 @@ Wait for ALL wave tasks before moving to next wave.
 ## Step 3 — Adversarial verification (HEAVY × 1)
 
 ```
-Agent[verifier]:
+Agent[swarm-reviewer]:
 TASK: Independently verify the work
 PLAN: {plan}
 WAVE RESULTS: {all_worker_outputs}

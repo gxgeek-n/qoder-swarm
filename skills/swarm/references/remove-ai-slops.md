@@ -17,7 +17,7 @@ Filter: deleted/binary/generated (node_modules, dist, lockfiles).
 ## Step 2 — Lock behavior (MID × 1)
 
 ```
-Agent[behavior-locker]:
+Agent[swarm-worker]:
 TASK: Verify regression coverage. Write tests for UNCOVERED public behavior. Run suite to GREEN baseline.
 FILES: {scope}
 RULES:
@@ -55,7 +55,7 @@ VERIFY: Re-run regression tests — still GREEN.
 ## Step 4 — Quality gates (MID × 1)
 
 ```
-Agent[gates]:
+Agent[swarm-reviewer]:
 TASK: Run all quality gates
 PROCESS:
   1. Full test suite (pass/fail count)

@@ -7,13 +7,13 @@
 Emit TWO Agent calls in ONE message:
 
 ```
-Agent[explorer]:
+Agent[swarm-explorer]:
 TASK: Codebase explorer. Find files, patterns, conventions relevant to: {task}
 DELIVERABLE: Structured report — absolute paths, existing patterns, anti-patterns, entry points
 SCOPE: Read-only. Never edit.
 VERIFY: Every path exists. Every claim cites a file.
 
-Agent[librarian]:
+Agent[swarm-librarian]:
 TASK: Librarian. Research external docs, OSS examples, best practices for: {task}
 DELIVERABLE: Cited findings — official refs, real examples, pitfalls
 SCOPE: External only. Don't touch local code.
@@ -23,7 +23,7 @@ VERIFY: Every claim has URL/source citation.
 ## Stage 2 — Plan draft (HEAVY × 1)
 
 ```
-Agent[planner]:
+Agent[swarm-planner]:
 TASK: Strategic planner. Produce ONE executable work plan for: {task}
 CONTEXT: {explorer_output}
 RESEARCH: {librarian_output}
@@ -40,7 +40,7 @@ Save plan to `.swarm/plan-and-review/{slug}.md`.
 ## Stage 3 — Gap analysis (HEAVY × 1)
 
 ```
-Agent[metis]:
+Agent[swarm-reviewer]:
 TASK: Pre-planning analyst. Find contradictions, ambiguity, missing constraints, execution risks
 PLAN: {plan_output}
 DELIVERABLE: Gap report —
@@ -56,7 +56,7 @@ VERIFY: Every finding is specific enough to act on.
 ## Stage 4 — Review (HEAVY × 1)
 
 ```
-Agent[momus]:
+Agent[swarm-reviewer]:
 TASK: Plan reviewer. Answer: "Can a capable developer execute this plan without getting stuck?"
 PLAN: {plan_output}
 GAPS: {gaps_output}

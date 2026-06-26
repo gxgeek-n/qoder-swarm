@@ -5,7 +5,7 @@ Hypothesis-driven debug loop. Runtime truth > code reading.
 ## Step 1 — Form 3+ hypotheses (HEAVY × 1)
 
 ```
-Agent[hypothesis-former]:
+Agent[swarm-planner]:
 TASK: Form ≥3 competing hypotheses for this bug
 SYMPTOM: {symptom}
 CONTEXT: {context}
@@ -43,7 +43,7 @@ RULES:
 Find the CONFIRMED hypothesis. If none confirmed but strong evidence in one, treat as confirmed.
 
 ```
-Agent[fixer]:
+Agent[swarm-worker]:
 TASK: Fix bug with MINIMAL correct change
 SYMPTOM: {symptom}
 ROOT CAUSE: {confirmed_evidence}
@@ -61,7 +61,7 @@ CONSTRAINTS:
 ## Step 4 — Verify (MID × 1)
 
 ```
-Agent[verifier]:
+Agent[swarm-reviewer]:
 TASK: Verify fix + no regression
 SYMPTOM: {symptom}
 FIX: {fix_summary}

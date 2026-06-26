@@ -43,7 +43,7 @@ Each: `SCOPE: Read-only. DELIVERABLE: structured findings with file paths + one-
 ## Step 3 — Score directories (CHEAP × 1)
 
 ```
-Agent[scorer]:
+Agent[swarm-explorer]:
 TASK: Decide which directories need AGENTS.md
 FINDINGS: {merged_exploration}
 SCORING (weight × threshold):
@@ -63,7 +63,7 @@ DELIVERABLE: list of paths + score + reason
 ## Step 4 — Generate AGENTS.md (MID × 1)
 
 ```
-Agent[generator]:
+Agent[swarm-worker]:
 TASK: Write AGENTS.md for these locations
 LOCATIONS: {scored_list}
 EXPLORATION: {findings}

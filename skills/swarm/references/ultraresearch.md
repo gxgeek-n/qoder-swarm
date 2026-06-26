@@ -9,7 +9,7 @@ Use this when you need EXHAUSTIVE coverage (recursive EXPAND loops). Use built-i
 ## Step 1 — Axis decomposition (CHEAP × 1)
 
 ```
-Agent[axis-planner]:
+Agent[swarm-planner]:
 TASK: Decompose research question into independent axes
 QUESTION: {question}
 DEFINITION: An axis = one angle pursuable independently
@@ -69,7 +69,7 @@ Stop when: no new leads, OR max 3 waves, OR budget low.
 ## Step 4 — Synthesize (MID × 1)
 
 ```
-Agent[synthesizer]:
+Agent[swarm-planner]:
 TASK: Synthesize cited research report
 QUESTION: {original_question}
 FINDINGS: {all_findings_concatenated}

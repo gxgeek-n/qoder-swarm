@@ -47,7 +47,17 @@ done
 cp -r "$SCRIPT_DIR/skills/swarm/"* "$QODER_HOME/skills/swarm/"
 echo "  ✓ Skill installed: swarm (1 router + $(ls "$SCRIPT_DIR/skills/swarm/references/" | wc -l | tr -d ' ') reference docs)"
 
-# 6. Auto-register hooks into settings.json (idempotent, with backup)
+# 6. Custom subagents (real model tiering via each agent's frontmatter model: field)
+mkdir -p "$QODER_HOME/agents"
+AGENT_COUNT=0
+for agent_file in "$SCRIPT_DIR/agents/"swarm-*.md; do
+  [ -f "$agent_file" ] || continue
+  cp "$agent_file" "$QODER_HOME/agents/"
+  AGENT_COUNT=$((AGENT_COUNT + 1))
+done
+echo "  ✓ Subagents installed: $AGENT_COUNT swarm-* (explorer/librarian/planner/reviewer/worker)"
+
+# 7. Auto-register hooks into settings.json (idempotent, with backup)
 echo ""
 if command -v python3 >/dev/null 2>&1; then
   python3 "$SCRIPT_DIR/install-settings.py" --qoder-home "$QODER_HOME"
