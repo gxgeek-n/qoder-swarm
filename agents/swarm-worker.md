@@ -7,6 +7,8 @@ model: performance
 effort: medium
 maxTurns: 15
 timeoutMins: 20
+skills: [simplify, ast-grep, code-reading-skill]
+isolation: worktree
 permissionMode: default
 color: green
 ---

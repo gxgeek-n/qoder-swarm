@@ -112,6 +112,82 @@ qoder-swarm/
 6. **Durable state** — survives context loss via `.swarm/` files
 7. **Budget-aware** — workflows check `budget.remaining()` before expensive operations
 
+## Customizing swarm-* Subagents
+
+After installation, the 5 subagents live at `~/.qoder/agents/swarm-*.md`. Each is a Markdown file with YAML frontmatter. You can edit them to fit your environment without touching this repo.
+
+### Switch underlying models
+
+Each subagent's `model:` field controls which LLM it uses. Default values are Qoder model tiers (`efficient`, `performance`). To force specific models:
+
+```yaml
+# ~/.qoder/agents/swarm-explorer.md
+model: Qwen3.7-Max-DogFooding   # free dogfooding model
+```
+
+```yaml
+# ~/.qoder/agents/swarm-planner.md
+model: GLM-5.2                  # specific provider model
+```
+
+Run `/model` inside Qoder to see what's available in your account.
+
+### Add MCP servers
+
+If you have MCP servers configured at the session level (`settings.json` `mcpServers`), give a specific subagent access by adding to its frontmatter:
+
+```yaml
+# Reference an already-configured MCP server by name
+mcpServers:
+  - code        # internal Alibaba code MCP
+  - yuque       # internal docs MCP
+  - github      # public github MCP
+```
+
+Or define an MCP server inline for one subagent only — see the [Qoder subagent docs](https://docs.qoder.com/en/cli/subagent.md#configure-mcp) for full syntax.
+
+### Preload more skills
+
+`skills:` preloads specialized skills into the subagent's context (vs. having it discovered via description matching). Defaults already include `ast-grep`, `code-reading-skill`, `security-review`, `simplify`. Add more:
+
+```yaml
+# Worker that handles AE-Trade domain code
+skills:
+  - simplify
+  - ast-grep
+  - code-reading-skill
+  - tech-prd-v2                 # internal: AE trade PRD
+  - ae-trade-carts-convention   # internal: AE carts convention
+```
+
+### Change permissions / runtime limits
+
+```yaml
+permissionMode: acceptEdits     # auto-approve edits (less prompting)
+maxTurns: 20                    # more conversation turns
+timeoutMins: 30                 # longer runtime cap
+isolation: worktree             # run in separate git worktree
+```
+
+### Override without editing files
+
+If you want to keep `~/.qoder/agents/swarm-*.md` clean (for easy upgrades), use `settings.json` overrides:
+
+```json
+{
+  "agents": {
+    "overrides": {
+      "swarm-explorer": {
+        "modelConfig": { "model": "Qwen3.7-Max-DogFooding" },
+        "mcpServers": { "code": { "type": "http", "url": "..." } }
+      }
+    }
+  }
+}
+```
+
+This persists across `bash install.sh` re-runs.
+
 ## Provenance
 
 | Source | What was ported | License |

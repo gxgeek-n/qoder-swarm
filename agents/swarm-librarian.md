@@ -6,6 +6,7 @@ disallowedTools: [Write, Edit, NotebookEdit, Agent]
 model: efficient
 effort: low
 maxTurns: 8
+skills: [code-reading-skill]
 permissionMode: default
 color: blue
 ---

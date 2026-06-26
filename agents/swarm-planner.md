@@ -6,6 +6,7 @@ disallowedTools: [NotebookEdit, Agent]
 model: performance
 effort: high
 maxTurns: 12
+skills: [ast-grep, code-reading-skill]
 permissionMode: default
 color: purple
 ---
