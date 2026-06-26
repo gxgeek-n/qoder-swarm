@@ -1,0 +1,42 @@
+# Qoder Dispatch Protocol
+# Drop this file into any project as .dispatch/registry.yml
+# Each Qoder terminal session picks a role and watches its inbox
+
+project:
+  name: "{{PROJECT_NAME}}"
+  root: "{{PROJECT_ROOT}}"
+
+controller:
+  role: controller
+  session_hint: "Terminal 1 - orchestration only, never writes product code"
+
+workers:
+  - role: impl
+    session_hint: "Terminal 2 - implementation"
+    inbox: .dispatch/inbox/impl.md
+    outbox: .dispatch/outbox/impl.md
+    allowed_tasks: [feature, bugfix, refactor]
+
+  - role: test
+    session_hint: "Terminal 3 - testing"
+    inbox: .dispatch/inbox/test.md
+    outbox: .dispatch/outbox/test.md
+    allowed_tasks: [unit_test, integration_test, e2e]
+
+  - role: docs
+    session_hint: "Terminal 4 - documentation"
+    inbox: .dispatch/inbox/docs.md
+    outbox: .dispatch/outbox/docs.md
+    allowed_tasks: [readme, api_docs, changelog]
+
+  - role: release
+    session_hint: "Terminal 5 - release & deploy"
+    inbox: .dispatch/inbox/release.md
+    outbox: .dispatch/outbox/release.md
+    allowed_tasks: [version_bump, publish, deploy]
+    high_risk: true
+
+safety:
+  auto_dispatch: [status_query, task_handoff, evidence_handoff]
+  require_confirmation: [publish, deploy, delete, force_push, credentials]
+  refuse: [secret_transfer, bulk_dispatch_no_check, bypass_safety]

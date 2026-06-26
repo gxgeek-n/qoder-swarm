@@ -1,0 +1,17 @@
+{
+  "name": "qoder-swarm",
+  "version": "0.1.0",
+  "description": "Multi-agent orchestration kit for Qoder CLI. Ported from LazyCodex/OmO + ThreadDeck.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/user/qoder-swarm"
+  },
+  "keywords": ["qoder", "multi-agent", "workflow", "orchestration", "swarm"],
+  "files": [
+    "workflows/",
+    "hooks/",
+    "dispatch-kit/",
+    "install.sh"
+  ]
+}
