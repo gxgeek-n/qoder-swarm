@@ -38,28 +38,27 @@ cp "$SCRIPT_DIR/scripts/"*.py "$QODER_HOME/scripts/" 2>/dev/null || true
 chmod +x "$QODER_HOME/scripts/"*.py 2>/dev/null || true
 echo "  ✓ Scripts installed"
 
-# 5. Hook registration reminder
+# 5. Auto-register hooks into settings.json (idempotent, with backup)
+echo ""
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$SCRIPT_DIR/install-settings.py" --qoder-home "$QODER_HOME"
+else
+  echo "  ⚠ python3 not found — skipping automatic hook registration."
+  echo "    Manually add hooks to $QODER_HOME/settings.json (see README)."
+fi
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  qoder-swarm installed successfully!"
 echo ""
-echo "  To enable hooks, add to ~/.qoder/settings.json:"
-echo ""
-echo '  "PostToolUse": [{'
-echo '    "matcher": "Edit|Write",'
-echo '    "hooks": [{"type":"command","command":"~/.qoder/hooks/swarm-comment-checker.sh","timeout":5}]'
-echo '  }]'
-echo ""
-echo '  "Stop": [{'
-echo '    "matcher": "*",'
-echo '    "hooks": [{"type":"command","command":"~/.qoder/hooks/swarm-stop-continuation.sh","timeout":10}]'
-echo '  }]'
-echo ""
 echo "  Available workflows:"
 echo "    plan-and-review, five-agent-review, start-work,"
 echo "    remove-ai-slops, init-deep, ultraresearch,"
-echo "    debugging, teammode, ulw-loop"
+echo "    debugging, teammode, ulw-loop, visual-qa-strict"
 echo ""
 echo "  Usage in Qoder:"
 echo '    Workflow({ name: "plan-and-review", args: { task: "..." } })'
+echo ""
+echo "  To uninstall hooks later:"
+echo "    python3 $SCRIPT_DIR/install-settings.py --uninstall"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
