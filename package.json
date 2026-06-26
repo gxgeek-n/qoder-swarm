@@ -9,9 +9,15 @@
   },
   "keywords": ["qoder", "multi-agent", "workflow", "orchestration", "swarm"],
   "files": [
+    "agents/",
+    "skills/",
+    "scripts/",
     "workflows/",
     "hooks/",
     "dispatch-kit/",
-    "install.sh"
+    "install.sh",
+    "install-settings.py",
+    "LICENSE",
+    "README.md"
   ]
 }

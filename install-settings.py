@@ -18,19 +18,35 @@ from pathlib import Path
 # Marker that identifies hooks added by this installer
 SWARM_MARKER = "swarm-"
 
-# Hooks we want to install
+# Hooks we want to install. The 'script' field is the basename in <qoder_home>/hooks/;
+# the actual command path is built at install time from --qoder-home so non-default
+# install locations work correctly.
 SWARM_HOOKS = {
     "PostToolUse": {
         "matcher": "Edit|Write|NotebookEdit",
-        "command": "~/.qoder/hooks/swarm-comment-checker.sh",
+        "script": "swarm-comment-checker.sh",
         "timeout": 5,
     },
     "Stop": {
         "matcher": "*",
-        "command": "~/.qoder/hooks/swarm-stop-continuation.sh",
+        "script": "swarm-stop-continuation.sh",
         "timeout": 10,
     },
 }
+
+
+def hook_command_path(qoder_home, script_name):
+    """Build the command path for a hook script under qoder_home.
+
+    Uses '~/.qoder/...' tilde form only when qoder_home resolves to the user's
+    default home so settings.json stays portable. Otherwise uses the resolved
+    absolute path.
+    """
+    qoder_home = Path(qoder_home).expanduser()
+    default_home = (Path.home() / ".qoder").resolve()
+    if qoder_home.resolve() == default_home:
+        return f"~/.qoder/hooks/{script_name}"
+    return str(qoder_home / "hooks" / script_name)
 
 
 def load_settings(path):
@@ -75,7 +91,7 @@ def already_installed(hooks_section, event_name):
     return False
 
 
-def install(settings, event_name):
+def install(settings, event_name, qoder_home):
     """Append swarm hook block to the event. Returns True if changed."""
     cfg = SWARM_HOOKS[event_name]
     settings.setdefault("hooks", {})
@@ -84,8 +100,9 @@ def install(settings, event_name):
     if already_installed(section, event_name):
         return False
 
+    command = hook_command_path(qoder_home, cfg["script"])
     section.setdefault(event_name, [])
-    section[event_name].append(hook_entry_for(event_name, cfg["command"]))
+    section[event_name].append(hook_entry_for(event_name, command))
     return True
 
 
@@ -147,7 +164,7 @@ def main():
             if uninstall(settings, event_name):
                 changes.append(f"removed swarm hook from {event_name}")
         else:
-            if install(settings, event_name):
+            if install(settings, event_name, qoder_home):
                 changes.append(f"added swarm hook to {event_name}")
 
     if not changes:

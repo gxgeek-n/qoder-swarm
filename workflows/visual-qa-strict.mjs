@@ -71,7 +71,7 @@ if (referencePath) {
   const diffResult = await agent(`TASK: Run the image-diff script and capture its JSON output.
 
 COMMAND TO RUN:
-python3 ~/qoder-swarm/scripts/image-diff.py "${referencePath}" "${screenshotPath}"
+python3 ~/.qoder/scripts/image-diff.py "${referencePath}" "${screenshotPath}"
 
 DELIVERABLE: The full JSON output from stdout. Do not interpret it, just return it verbatim.
 SCOPE: Run one command and report output.`, {

@@ -10,11 +10,13 @@ Turn a single Qoder session into a multi-agent control room with model-tiered co
 
 | Feature | Origin | Description |
 |---------|--------|-------------|
-| 9 Workflow scripts | LazyCodex/OmO | Planning, review, execution, research, debugging |
+| **`swarm` Skill** (primary) | Original | One auto-triggered skill routes natural-language requests to 10 orchestration patterns |
+| 5 custom subagents | LazyCodex/OmO | `swarm-explorer/librarian/planner/reviewer/worker` with per-role model tiers |
 | Dispatch protocol | ThreadDeck | Multi-terminal collaboration via file system |
-| Comment checker hook | LazyCodex | Post-edit AI slop detection |
-| Stop continuation hook | LazyCodex | Pending work reminder on session end |
+| Comment-checker hook | LazyCodex | Post-edit AI-slop reminder |
+| Stop-continuation hook | LazyCodex | Pending-work alert on session end |
 | Model tiering | Original | Free Qwen for search, GLM for code — save 60%+ credits |
+| 10 Workflow scripts (optional) | LazyCodex/OmO | Reference `.mjs` runtime implementations; require Qoder Workflow tool feature flag |
 
 ## Install
 
@@ -29,19 +31,28 @@ Or let Qoder do it:
 Clone qoder-swarm and run its install.sh
 ```
 
-## Workflows
+## Orchestration Patterns
 
-| Name | Trigger | Agents | Cost |
-|------|---------|--------|------|
-| `plan-and-review` | "plan this" | 4 | ~1.80x |
-| `five-agent-review` | "review work" | 6 | ~2.40x |
-| `start-work` | "start work" | N+2 | varies |
-| `remove-ai-slops` | "clean AI code" | N/5+2 | varies |
-| `init-deep` | "project memory" | 4-12 | ~1.20x |
-| `ultraresearch` | "deep research" | 3-15 | varies |
-| `debugging` | "debug this" | 5 | ~2.40x |
-| `teammode` | "team mode" | 4+ | varies |
-| `ulw-loop` | "keep going" | 1-20 | varies |
+The `swarm` Skill auto-activates from natural-language triggers (works on all Qoder accounts). Each pattern lives in `~/.qoder/skills/swarm/references/<name>.md` after install.
+
+| Pattern | Trigger (EN / 中文) | Agents | Cost |
+|---------|---------------------|--------|------|
+| `plan-and-review` | "plan this" / "规划" | 4 | ~1.80x |
+| `five-agent-review` | "review work" / "审查代码" | 6 | ~2.40x |
+| `start-work` | "start work" / "开始干活" | N+2 | varies |
+| `remove-ai-slops` | "clean AI code" / "清理AI代码" | N/5+2 | varies |
+| `init-deep` | "project memory" / "项目记忆" | 4-12 | ~1.20x |
+| `ultraresearch` | "deep research" / "深度研究" | 3-15 | varies |
+| `debugging` | "debug this" / "调试" | 5 | ~2.40x |
+| `visual-qa-strict` | "visual QA" / "视觉验证" | 4 | ~2.40x |
+| `teammode` | "team mode" / "团队模式" | 4+ | varies |
+| `ulw-loop` | "keep going" / "一直跑到完成" | 1-20 | varies |
+
+**Advanced**: power users with the Qoder Workflow tool feature flag enabled can also invoke patterns directly:
+```
+Workflow({ name: "plan-and-review", args: { task: "..." } })
+```
+The `workflows/*.mjs` scripts ship as reference implementations of the same patterns.
 
 ## Model Configuration
 
@@ -81,7 +92,16 @@ Then open multiple terminals, each Qoder session reads its role's inbox.
 
 ```
 qoder-swarm/
-├── workflows/           # 9 Workflow scripts (.mjs)
+├── skills/swarm/        # The 'swarm' Skill — primary entry point
+│   ├── SKILL.md         #   router with trigger words → reference dispatch
+│   └── references/      #   10 orchestration pattern playbooks
+├── agents/              # 5 custom subagents with per-role model tiers
+│   ├── swarm-explorer.md   # efficient/low — read-only codebase search
+│   ├── swarm-librarian.md  # efficient/low — external docs/OSS
+│   ├── swarm-planner.md    # performance/high — strategic planning
+│   ├── swarm-reviewer.md   # performance/high — adversarial review
+│   └── swarm-worker.md     # performance/medium — implementation (worktree-isolated)
+├── workflows/           # 10 Workflow .mjs (optional, feature-gated)
 │   ├── plan-and-review.mjs
 │   ├── five-agent-review.mjs
 │   ├── start-work.mjs
@@ -90,7 +110,8 @@ qoder-swarm/
 │   ├── ultraresearch.mjs
 │   ├── debugging.mjs
 │   ├── teammode.mjs
-│   └── ulw-loop.mjs
+│   ├── ulw-loop.mjs
+│   └── visual-qa-strict.mjs
 ├── hooks/               # Post-tool and stop hooks
 │   ├── swarm-comment-checker.sh
 │   └── swarm-stop-continuation.sh

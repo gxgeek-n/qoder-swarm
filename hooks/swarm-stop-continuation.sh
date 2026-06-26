@@ -10,7 +10,7 @@ if [ -f "$ULW_STATE" ]; then
   if [ "$STATUS" = "active" ]; then
     TASK=$(grep -o '"task":"[^"]*"' "$ULW_STATE" | head -1 | cut -d'"' -f4)
     echo "[swarm:continuation] ULW loop is still active: $TASK"
-    echo "Resume with: Workflow({ name: 'ulw-loop', args: { task: '$TASK' } })"
+    echo "Resume by telling Qoder: 'continue the ulw-loop for $TASK'"
     exit 0
   fi
 fi
