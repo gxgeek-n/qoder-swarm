@@ -1,0 +1,38 @@
+# .aoneci/smoke.yaml
+# Runs tests/smoke-test.sh on every push and every opened MR.
+# Syntax ref: https://aliyuque.antfin.com/aoneci/gncflv/zn9dhevbwby6715s
+name: smoke-test
+
+triggers:
+  push:
+    branches: ['**']
+  merge_request:
+    target-branches: ['**']
+
+jobs:
+  smoke:
+    image: alios-8u
+    timeout: 10m
+    steps:
+      - uses: checkout
+
+      - id: show-env
+        run: |
+          set -euxo pipefail
+          uname -a
+          python3 --version
+          pip3 --version
+          bash --version | head -n1
+
+      - id: install-deps
+        run: |
+          set -euxo pipefail
+          pip3 install --no-cache-dir \
+            -i https://mirrors.aliyun.com/pypi/simple/ \
+            --trusted-host mirrors.aliyun.com \
+            pyyaml Pillow
+
+      - id: smoke
+        run: |
+          set -euo pipefail
+          bash tests/smoke-test.sh
