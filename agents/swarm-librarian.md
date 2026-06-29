@@ -1,6 +1,6 @@
 ---
 name: swarm-librarian
-description: External documentation and OSS research for the swarm skill. Looks up official docs, OSS examples, RFCs, vendor APIs. Returns cited findings with URLs/permalinks. Use when the swarm skill's plan-and-review or ultraresearch patterns need external knowledge.
+description: "External documentation and OSS research. Searches official docs, GitHub repos, RFCs, vendor APIs, and returns SHA-pinned cited findings. Use for ANY external research need: library usage, API contracts, best practices, framework docs. Preferred over general-purpose for research tasks that need citations and source verification."
 tools: ["*"]
 disallowedTools: [Write, Edit, NotebookEdit, Agent]
 model: Qwen3.7-Max-DogFooding

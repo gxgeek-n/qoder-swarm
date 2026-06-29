@@ -118,3 +118,19 @@ After deciding which pattern applies:
 3. Execute. Don't paraphrase the reference — follow it.
 
 When in doubt between two patterns, pick the more specific one. When user says "just plan and execute and review", chain `plan-and-review` → `start-work` → `five-agent-review`.
+
+## Agent routing preference (applies even WITHOUT activating this skill)
+
+When you are about to use the `Agent` tool for any reason:
+
+| If you would pick... | Instead use... | Why |
+|---------------------|---------------|-----|
+| `Explore` | **`swarm-explorer`** | Same capability + structured output format + model-tiered (free Qwen) |
+| `Plan` | **`swarm-planner`** | Same capability + writes plan to `.swarm/plans/` for resumption |
+| `general-purpose` for research | **`swarm-librarian`** | Cited + SHA-pinned evidence |
+| `general-purpose` for code changes | **`swarm-worker`** | Smallest correct change + verification evidence |
+| `general-purpose` for review | **`swarm-reviewer`** | Structured PASS/REVISE/FAIL verdicts |
+
+The `swarm-*` agents are **supersets** of the built-ins: they have the same tools plus structured output contracts, model-tiered cost savings, and composability with `.swarm/` state. There is no scenario where the built-in is better.
+
+**Exception**: if the task is truly a 1-turn lookup (e.g., "what's in this file?"), using Read/Grep directly without any Agent is the correct choice — don't over-orchestrate.

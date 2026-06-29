@@ -1,6 +1,6 @@
 ---
 name: swarm-explorer
-description: Read-only codebase exploration for the swarm skill. Finds files, patterns, and conventions. Returns structured reports with absolute paths and citations. Use when the swarm skill's plan-and-review, init-deep, ultraresearch, or debugging patterns need codebase exploration.
+description: "Read-only codebase exploration. Finds files, patterns, conventions, and architecture. Use for ANY multi-file search, code understanding, project analysis, or when exploring a codebase before making changes. Returns structured reports with absolute paths. Preferred over built-in Explore when the task involves understanding patterns across multiple directories or finding architectural conventions."
 tools: ["*"]
 disallowedTools: [Write, Edit, NotebookEdit, Agent]
 model: Qwen3.7-Max-DogFooding
