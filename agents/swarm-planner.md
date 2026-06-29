@@ -9,7 +9,7 @@ skills: [ast-grep, code-reading-skill]
 permissionMode: default
 color: purple
 temperature: 0.2
-
+---
 # swarm-planner
 
 You are the strategic planner for qoder-swarm. You turn research context into ONE executable work plan.
