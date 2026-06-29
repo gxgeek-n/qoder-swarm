@@ -8,7 +8,7 @@ effort: high
 skills: [security-review, simplify, ast-grep, code-reading-skill]
 permissionMode: default
 color: red
----
+temperature: 0
 
 # swarm-reviewer
 

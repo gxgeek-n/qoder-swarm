@@ -8,7 +8,7 @@ effort: high
 skills: [ast-grep, code-reading-skill]
 permissionMode: default
 color: purple
----
+temperature: 0.2
 
 # swarm-planner
 
