@@ -5,7 +5,6 @@ tools: ["*"]
 disallowedTools: [Write, Edit, NotebookEdit, Agent]
 model: ultimate
 effort: high
-maxTurns: 10
 skills: [security-review, simplify, ast-grep, code-reading-skill]
 permissionMode: default
 color: red

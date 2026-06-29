@@ -5,7 +5,6 @@ tools: ["*"]
 disallowedTools: [Write, Edit, NotebookEdit, Agent]
 model: Qwen3.7-Max-DogFooding
 effort: low
-maxTurns: 8
 skills: [ast-grep, code-reading-skill]
 permissionMode: default
 color: cyan

@@ -5,7 +5,6 @@ tools: ["*"]
 disallowedTools: [Write, Edit, NotebookEdit, Agent]
 model: DeepSeek-V4-Flash
 effort: medium
-maxTurns: 6
 skills: [ast-grep, code-reading-skill]
 permissionMode: default
 color: orange
