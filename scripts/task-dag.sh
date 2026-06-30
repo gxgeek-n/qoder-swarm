@@ -5,6 +5,8 @@
 #
 # Uses 3-colour DFS (WHITE/GRAY/BLACK) backed by temp files + awk,
 # compatible with macOS bash 3.2 (no associative arrays).
+# Cycle detection uses python3 (macOS default, alios-8u CI default) for O(V+E) iterative DFS.
+# Pure bash 3.2 implementation was O(n²) due to awk subprocess per node visit (R4 review).
 set -euo pipefail
 
 SWARM_HOME="${SWARM_HOME:-$PWD}"
@@ -16,8 +18,8 @@ LOCK_FILE="${SWARM_HOME}/.swarm/tasks.json.lock"
 # ---------------------------------------------------------------------------
 
 ensure_tasks_file() {
-  mkdir -p "$(dirname "$TASKS_FILE")"
   if [ ! -f "$TASKS_FILE" ]; then
+    mkdir -p "$(dirname "$TASKS_FILE")"
     printf '{"tasks":{}}\n' > "$TASKS_FILE"
   fi
 }
@@ -72,74 +74,67 @@ with_lock() {
 # following the blocked_by chain from the proposed node leads back to a
 # GRAY node (back edge = cycle).
 #
-# Implementation: temp files + awk (bash 3.2 has no associative arrays).
+# Implementation: single python3 invocation (O(V+E) iterative DFS).
+# Bash 3.2 + awk-per-node was O(n²) subprocess overhead — 50 chained tasks
+# took 26s on macOS.  Python is available on macOS 12.3+ and alios-8u CI.
 # ---------------------------------------------------------------------------
 
 detect_cycle() {
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "task-dag: python3 required for cycle detection but not found in PATH" >&2
+    return 2  # distinct from cycle (1) and OK (0)
+  fi
   local proposed_id="$1"
   local proposed_deps_csv="${2:-}"
   ensure_tasks_file
 
-  local color_file deps_file
-  color_file=$(mktemp)
-  deps_file=$(mktemp)
+  python3 - "$proposed_id" "$proposed_deps_csv" "$TASKS_FILE" <<'PYEOF'
+import json, sys
 
-  # Build adjacency list: "id<TAB>dep1 dep2 ..." (including proposed node)
-  local proposed_deps_spaced="${proposed_deps_csv//,/ }"
-  jq -r --arg pid "$proposed_id" --arg pdeps "$proposed_deps_spaced" '
-    .tasks | to_entries[] | "\(.key)\t\(.value.blocked_by // [] | join(" "))",
-    "\($pid)\t\($pdeps)"
-  ' "$TASKS_FILE" > "$deps_file" 2>/dev/null || true
+proposed_id = sys.argv[1]
+deps_csv = sys.argv[2]
+tasks_file = sys.argv[3]
 
-  # Initialise colours: all WHITE (0)
-  while IFS=$'\t' read -r cid _; do
-    [ -z "$cid" ] && continue
-    printf '%s\t0\n' "$cid"
-  done < "$deps_file" > "$color_file"
+try:
+    with open(tasks_file) as f:
+        data = json.load(f)
+except (json.JSONDecodeError, OSError) as e:
+    print(f"task-dag: cannot read tasks file: {e}", file=sys.stderr)
+    sys.exit(3)
+tasks = data.get("tasks", {})
 
-  # --- helper functions (global, but reference locals via dynamic scope) ---
+# Adjacency: node -> list of parents (blocked_by)
+adj = {tid: list(t.get("blocked_by") or []) for tid, t in tasks.items()}
+proposed_parents = [d for d in deps_csv.split(",") if d.strip()] if deps_csv else []
+adj[proposed_id] = proposed_parents
 
-  _dc_get_deps() {
-    awk -F'\t' -v n="$1" '$1==n{print $2; exit}' "$deps_file"
-  }
+# 3-color iterative DFS from proposed
+WHITE, GRAY, BLACK = 0, 1, 2
+color = {n: WHITE for n in adj}
 
-  _dc_get_color() {
-    awk -F'\t' -v n="$1" '$1==n{print $2; exit}' "$color_file"
-  }
+def dfs(start):
+    stack = [(start, iter(adj.get(start, [])))]
+    color[start] = GRAY
+    while stack:
+        node, it = stack[-1]
+        try:
+            parent = next(it)
+        except StopIteration:
+            color[node] = BLACK
+            stack.pop()
+            continue
+        if parent not in color:
+            # Missing parent — caller catches via parent-existence check
+            continue
+        if color[parent] == GRAY:
+            return True  # cycle
+        if color[parent] == WHITE:
+            color[parent] = GRAY
+            stack.append((parent, iter(adj.get(parent, []))))
+    return False
 
-  _dc_set_color() {
-    local node="$1" color="$2"
-    awk -F'\t' -v n="$node" '$1!=n' "$color_file" > "${color_file}.tmp" 2>/dev/null || true
-    printf '%s\t%s\n' "$node" "$color" >> "${color_file}.tmp"
-    mv "${color_file}.tmp" "$color_file"
-  }
-
-  # Recursive 3-colour DFS
-  _dc_dfs() {
-    local node="$1"
-    _dc_set_color "$node" 1            # GRAY
-    local parents parent c
-    parents=$(_dc_get_deps "$node")
-    for parent in $parents; do
-      [ -z "$parent" ] && continue
-      c=$(_dc_get_color "$parent")
-      [ -z "$c" ] && continue          # parent not in graph → skip
-      if [ "$c" = "1" ]; then
-        return 1                       # back edge → cycle
-      fi
-      if [ "$c" = "0" ]; then
-        _dc_dfs "$parent" || return 1
-      fi
-    done
-    _dc_set_color "$node" 2            # BLACK
-    return 0
-  }
-
-  local result=0
-  _dc_dfs "$proposed_id" || result=1
-
-  rm -f "$color_file" "$deps_file" "${color_file}.tmp" 2>/dev/null || true
-  return $result
+sys.exit(1 if dfs(proposed_id) else 0)
+PYEOF
 }
 
 # ---------------------------------------------------------------------------
@@ -162,78 +157,86 @@ cmd_add() {
     esac
   done
 
-  ensure_tasks_file
+  # Cycle check — single python3 invocation (O(V+E) DFS)
+  detect_cycle "$id" "$depends"
+  local rc=$?
+  case "$rc" in
+    0) ;;  # no cycle, proceed
+    1) echo "task-dag: cycle detected — adding $id with depends=[$depends] would create a cycle" >&2; return 1 ;;
+    2) echo "task-dag: cycle detection unavailable (python3 missing) — refusing add" >&2; return 2 ;;
+    3) echo "task-dag: tasks file is corrupt or unreadable — refusing add" >&2; return 3 ;;
+    *) echo "task-dag: cycle detection returned unexpected code $rc" >&2; return 1 ;;
+  esac
 
-  # Duplicate check
-  if jq -e --arg id "$id" '.tasks[$id]' "$TASKS_FILE" > /dev/null 2>&1; then
-    echo "task-dag: task $id already exists" >&2
-    return 1
-  fi
-
-  # Parent existence check
-  if [ -n "$depends" ]; then
-    local OLD_IFS="$IFS"
-    IFS=','
-    for dep in $depends; do
-      if ! jq -e --arg d "$dep" '.tasks[$d]' "$TASKS_FILE" > /dev/null 2>&1; then
-        echo "task-dag: parent task $dep does not exist" >&2
-        IFS="$OLD_IFS"
-        return 1
-      fi
-    done
-    IFS="$OLD_IFS"
-  fi
-
-  # Cycle check
-  if ! detect_cycle "$id" "$depends"; then
-    echo "task-dag: cycle detected — adding $id with depends=[$depends] would create a cycle" >&2
-    return 1
-  fi
-
-  local now status blocked_by_json
-  now=$(_now)
+  local status blocked_by_json
 
   if [ -n "$depends" ]; then
     status="blocked"
-    blocked_by_json=$(printf '%s' "$depends" | tr ',' '\n' | jq -R . | jq -s .)
+    # Build JSON array in pure bash (avoids tr+jq+jq subprocess forks)
+    local deps_json=""
+    local OLD_IFS="$IFS"
+    IFS=','
+    for dep in $depends; do
+      deps_json="${deps_json}\"${dep}\","
+    done
+    IFS="$OLD_IFS"
+    blocked_by_json="[${deps_json%,}]"
   else
     status="pending"
     blocked_by_json="[]"
   fi
 
-  local tmp
+  # Combined: duplicate check + parent existence check + write + blocks update.
+  # Single jq call replaces 4+ separate subprocess forks (was O(n) jq calls).
+  # Uses jq's now|todate for timestamp (avoids date fork).
+  # error() causes exit code 5 with message on stderr.
+  local tmp jq_err
   tmp=$(mktemp)
-  jq --arg id "$id" \
-     --arg title "$title" \
-     --arg owner "$owner" \
-     --arg status "$status" \
-     --arg now "$now" \
-     --argjson blocked_by "$blocked_by_json" \
-     '.tasks[$id] = {
-        id: $id,
-        title: $title,
-        status: $status,
-        blocked_by: $blocked_by,
-        blocks: [],
-        owner: $owner,
-        created: $now,
-        updated: $now
-     }' \
-     "$TASKS_FILE" > "$tmp" && _atomic_write "$tmp"
 
-  # Update parent .blocks arrays
-  if [ -n "$depends" ]; then
-    local OLD_IFS="$IFS"
-    IFS=','
-    for dep in $depends; do
-      tmp=$(mktemp)
-      jq --arg id "$id" --arg dep "$dep" \
-         '.tasks[$dep].blocks += [$id] | .tasks[$dep].blocks |= unique' \
-         "$TASKS_FILE" > "$tmp" && _atomic_write "$tmp"
-    done
-    IFS="$OLD_IFS"
+  if ! jq_err=$(jq --arg id "$id" \
+          --arg title "$title" \
+          --arg owner "$owner" \
+          --arg status "$status" \
+          --argjson blocked_by "$blocked_by_json" \
+          --arg deps "$depends" '
+      (now | todate) as $now
+      | . as $root
+      | ($deps | split(",") | map(select(length > 0))) as $dl
+      | [ $dl[] | select(. as $d | $root.tasks[$d] | not) ] as $miss
+      | if $root.tasks[$id] then error("DUP")
+        elif ($miss | length) > 0 then error("MISS:" + ($miss | first))
+        else
+          .tasks[$id] = {
+            id: $id,
+            title: $title,
+            status: $status,
+            blocked_by: $blocked_by,
+            blocks: [],
+            owner: $owner,
+            created: $now,
+            updated: $now
+          }
+          | reduce $dl[] as $dep (.;
+              .tasks[$dep].blocks += [$id]
+              | .tasks[$dep].blocks |= unique)
+        end
+      ' "$TASKS_FILE" 2>&1 >"$tmp"); then
+    # jq exited non-zero — validation error
+    rm -f "$tmp"
+    case "$jq_err" in
+      *DUP*)
+        echo "task-dag: task $id already exists" >&2 ;;
+      *MISS:*)
+        local missing="${jq_err##*MISS:}"
+        missing="${missing%%[[:space:]]*}"
+        echo "task-dag: parent task $missing does not exist" >&2 ;;
+      *)
+        echo "task-dag: internal error" >&2 ;;
+    esac
+    return 1
   fi
 
+  _atomic_write "$tmp"
   echo "added $id (status=$status)"
 }
 

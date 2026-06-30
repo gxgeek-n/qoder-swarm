@@ -286,6 +286,28 @@ expect "legacy dir archived"        "[ ! -d $TMP_HOME/skills/debugging ]"
 expect "user content preserved"     "ls $TMP_HOME/.swarm-archive/*/debugging/user-note.txt"
 expect "non-swarm dir untouched"    "[ -d $TMP_HOME/skills/not-swarm ]"
 
+# ─── v3 perf regression test ─────────────────────────────────
+# Bug fixed: detect_cycle was O(n²) via awk-per-node, 50-task insert took 26s.
+# After python3 DFS rewrite: ~3-4s. 10s threshold gives CI slack.
+PERF_TMP="${TMP_HOME}/perf-test"
+mkdir -p "$PERF_TMP/.swarm"
+PERF_START=$(date +%s)
+(
+  cd "$PERF_TMP"
+  for i in $(seq 0 49); do
+    if [ "$i" -eq 0 ]; then
+      SWARM_HOME="$PERF_TMP" "$TMP_HOME/scripts/task-dag.sh" add "t$i" "task$i" >/dev/null 2>&1
+    else
+      SWARM_HOME="$PERF_TMP" "$TMP_HOME/scripts/task-dag.sh" add "t$i" "task$i" --depends "t$((i-1))" >/dev/null 2>&1
+    fi
+  done
+)
+PERF_END=$(date +%s)
+PERF_DUR=$((PERF_END - PERF_START))
+expect "task-dag.sh: insert 50 chained tasks within 10s (perf regression)" "[ $PERF_DUR -le 10 ]"
+echo "  (insert 50 tasks took ${PERF_DUR}s)"
+rm -rf "$PERF_TMP"
+
 # ─────────────────────────────────────────────────────────────────────
 echo ""
 echo "[8/8] Uninstall round-trip"
