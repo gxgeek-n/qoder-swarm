@@ -21,7 +21,7 @@ If you (a future LLM) catch yourself wanting to paste a "Stage 1 — ..." block 
 
 | Pattern | Trigger words (EN / 中文) |
 |---------|-------------------------|
-| `plan-and-review` | "plan this" / "ulw-plan" / "break down" / "规划" / "拆解" + multi-step/ambiguous |
+| `plan-and-review` | "plan this" / "ulw-plan" / "break down" / "规划" / "拆解" / "clarify first" / "先问我" / "scope unclear" / "stress test plan" / "对抗规划" / "hyperplan" / "hostile critic" + multi-step/ambiguous |
 | `five-agent-review` | "review work" / "QA my work" / "审查代码" / "代码审查" |
 | `start-work` | "start work" / "execute plan" / "开始干活" / "执行计划" |
 | `remove-ai-slops` | "remove slop" / "clean AI code" / "deslop" / "清理AI代码" |

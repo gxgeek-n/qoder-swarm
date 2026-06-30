@@ -6,6 +6,30 @@
 
 Before launching Stage 1 research, `Glob .swarm/memory/*.md` and `Read` any file whose name obviously matches the task topic. See `docs/memory-protocol.md`. Skip if no obvious match.
 
+## Stage 0.5 — Interview mode (when ambiguous)
+
+**Source**: OmO Prometheus interview mode. Front-loads clarity to prevent plan-reject-replan cycles.
+
+Before launching Stage 1 research, the orchestrator checks if the user's request is ambiguous (see `prompts/interview.md` for detection signals).
+
+**If ambiguous:**
+1. Make ONE LLM call using `prompts/interview.md` with `{task}` and detected `{ambiguity_signals}`
+2. Present the questions to the user (via normal chat response — NOT a tool call)
+3. Wait for user answers
+4. Incorporate answers into `{task}` — append "Clarifications: ..." to the task description
+5. Proceed to Stage 1 with the enriched task
+
+**If not ambiguous** (common case):
+- Skip directly to Stage 1. No LLM call, no delay.
+
+**After receiving answers:**
+- Do NOT ask follow-up questions. One round only.
+- If user says "你决定" or equivalent → use question defaults → proceed.
+
+**Cost**: 0-1 LLM calls (only when ambiguous). Most concrete tasks skip this entirely.
+
+**Why this matters**: In v1-v4 iterations, the gap analysis found 3+ "ambiguity" issues in every plan. Each ambiguity = one potential replan cycle = 2+ LLM calls wasted. A single interview call saves multiple replan calls.
+
 ## Stage 1 — Parallel research (CHEAP × 2)
 
 Emit TWO Agent calls in ONE message:
@@ -77,6 +101,33 @@ DELIVERABLE: Gap report —
 SCOPE: Read-only analysis.
 VERIFY: Every finding is specific enough to act on.
 ```
+
+## Stage 3.5 — Hyperplan hostile critics (adversarial stress-test)
+
+**Source**: OmO hyperplan workflow. Deploys hostile critics to try to BREAK the plan before any worker touches code.
+
+After Stage 3 (gap analysis) and BEFORE Stage 4 (reviewer verdict), run one hostile critic pass:
+
+```
+Agent[swarm-reviewer]:
+TASK: Hostile critic — try to break this plan
+PLAN: {plan_output}
+GAPS: {gaps_output}
+PROMPT: prompts/hyperplan-critic.md
+DELIVERABLE: JSON with attacks[] + verdict + top_fatal_flaw
+SCOPE: Read-only adversarial analysis. Do not fix — only expose.
+```
+
+**Processing the result:**
+- `verdict: "ROBUST"` → proceed to Stage 4 (reviewer verdict) normally
+- `verdict: "VULNERABLE"` with severity HIGH attacks:
+  - If top_fatal_flaw is addressable without replanning → patch the plan inline (add a task or fix an acceptance criterion)
+  - If top_fatal_flaw requires fundamental redesign → feed attacks back to Stage 2 planner as additional context, re-run Stage 2 (max 1 replan from hyperplan)
+- LOW/MEDIUM attacks → document in gaps, don't replan
+
+**Cost**: 1 additional LLM call (using swarm-reviewer, which is Ultimate model — appropriate for adversarial depth). Total plan-and-review cost goes from ~1.80x → ~2.80x, but saves 1-2 replan cycles downstream.
+
+**Why this matters**: In v1 self-bootstrap, the 5-agent review found 12 blockers AFTER implementation. In v3, it found 3 MAJORs. Moving adversarial critique to planning stage catches these pre-implementation = 10-20x cheaper (no worker credit spent on doomed code).
 
 ## Stage 4 — Review (HEAVY × 1)
 
