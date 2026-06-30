@@ -32,3 +32,13 @@ jobs:
             --trusted-host mirrors.aliyun.com \
             pyyaml Pillow
           bash tests/smoke-test.sh
+
+      - id: verify-models
+        run: |
+          set -euxo pipefail
+          bash scripts/verify-models.sh
+
+      - id: check-references
+        run: |
+          set -euxo pipefail
+          bash scripts/check-references.sh

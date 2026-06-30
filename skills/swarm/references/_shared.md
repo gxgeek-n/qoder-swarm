@@ -71,7 +71,7 @@ How to apply: model is bound to the subagent's frontmatter (`model:` field). To 
 
 **Option A (recommended)**: dispatch via `general-purpose` agent (default session model — typically a CHEAP-tier model in dogfooding configs) with `subagent_type: "general-purpose"`. This works for any text-edit task without needing a swarm-* worker.
 
-**Option B**: maintain a second worker definition (e.g., `agents/swarm-worker-doc.md` with `model: Qwen3.7-Max-DogFooding`) and dispatch with `subagent_type: "swarm-worker-doc"`.
+**Option B**: maintain a second worker definition (e.g., `agents/swarm-worker-<variant>.md` with `model: Qwen3.7-Max-DogFooding`) and dispatch with `subagent_type: "swarm-worker-doc"`.
 
 **Option C**: configure user session to use a cheap model by default (settings.json model routing), so even `swarm-worker` runs cheap until explicit `effort: high` is requested.
 
