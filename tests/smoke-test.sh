@@ -308,6 +308,29 @@ expect "task-dag.sh: insert 50 chained tasks within 10s (perf regression)" "[ $P
 echo "  (insert 50 tasks took ${PERF_DUR}s)"
 rm -rf "$PERF_TMP"
 
+# ─── v3 jq-fallback test (when python3 is missing) ─────────────────
+# detect_cycle prefers python3 but falls back to pure jq.
+# SWARM_FORCE_JQ=1 forces the jq path even when python3 is available.
+JQ_TMP="${TMP_HOME}/jq-fallback-test"
+mkdir -p "$JQ_TMP/.swarm"
+# Basic add chain via jq path
+SWARM_HOME="$JQ_TMP" SWARM_FORCE_JQ=1 "$TMP_HOME/scripts/task-dag.sh" add JA "alpha" >/dev/null 2>&1
+SWARM_HOME="$JQ_TMP" SWARM_FORCE_JQ=1 "$TMP_HOME/scripts/task-dag.sh" add JB "beta" --depends JA >/dev/null 2>&1
+expect "task-dag.sh jq fallback: add+depend chain works" \
+  "[ \"\$(SWARM_HOME=$JQ_TMP $TMP_HOME/scripts/task-dag.sh list 2>/dev/null | grep -c '^J[AB]')\" = '2' ]"
+# Cycle detection via jq path: craft cyclic state and verify add is rejected
+cat > "$JQ_TMP/.swarm/tasks.json" <<'EOJ'
+{"tasks":{
+  "JX":{"id":"JX","title":"x","status":"pending","blocked_by":["JY"],"blocks":["JY"],"owner":"","created":"","updated":""},
+  "JY":{"id":"JY","title":"y","status":"pending","blocked_by":["JX"],"blocks":["JX"],"owner":"","created":"","updated":""}
+}}
+EOJ
+# task-dag.sh exits 1 when a cycle is detected; pipefail (set above) would
+# make the pipeline fail even when grep succeeds. Swallow the exit with || true.
+expect "task-dag.sh jq fallback: cycle reachable through existing X<->Y rejected" \
+  "{ SWARM_HOME=$JQ_TMP SWARM_FORCE_JQ=1 $TMP_HOME/scripts/task-dag.sh add JZ z --depends JX 2>&1 || true; } | grep -q cycle"
+rm -rf "$JQ_TMP"
+
 # ─────────────────────────────────────────────────────────────────────
 echo ""
 echo "[8/8] Uninstall round-trip"

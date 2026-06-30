@@ -4,7 +4,7 @@ description: Strategic planner for the swarm skill. Produces one decision-comple
 tools: ["*"]
 disallowedTools: [NotebookEdit, Agent]
 model: ultimate
-effort: high
+effort: max
 skills: [ast-grep, code-reading-skill]
 permissionMode: default
 color: purple

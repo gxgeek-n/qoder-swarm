@@ -80,14 +80,26 @@ with_lock() {
 # ---------------------------------------------------------------------------
 
 detect_cycle() {
-  if ! command -v python3 >/dev/null 2>&1; then
-    echo "task-dag: python3 required for cycle detection but not found in PATH" >&2
-    return 2  # distinct from cycle (1) and OK (0)
-  fi
   local proposed_id="$1"
   local proposed_deps_csv="${2:-}"
   ensure_tasks_file
 
+  # Prefer python3 (cleaner code, slightly faster for huge graphs).
+  # SWARM_FORCE_JQ=1 forces the jq fallback path (used by tests).
+  if [ "${SWARM_FORCE_JQ:-}" != "1" ] && command -v python3 >/dev/null 2>&1; then
+    _detect_cycle_python3 "$proposed_id" "$proposed_deps_csv"
+    return $?
+  fi
+
+  # Fallback: pure jq (jq is already a hard dep for this script).
+  _detect_cycle_jq "$proposed_id" "$proposed_deps_csv"
+  return $?
+}
+
+# python3 path: 3-color iterative DFS, O(V+E).
+_detect_cycle_python3() {
+  local proposed_id="$1"
+  local proposed_deps_csv="$2"
   python3 - "$proposed_id" "$proposed_deps_csv" "$TASKS_FILE" <<'PYEOF'
 import json, sys
 
@@ -135,6 +147,79 @@ def dfs(start):
 
 sys.exit(1 if dfs(proposed_id) else 0)
 PYEOF
+}
+
+# jq fallback path: iterative 3-color DFS in jq.
+# Cycle exists iff the augmented graph (existing tasks + {proposed_id: proposed_parents})
+# contains any cycle reachable from proposed_id by walking blocked_by edges.
+# Pure jq, no new deps. Exit codes match python3 path:
+#   0 = no cycle, 1 = cycle, 3 = tasks file unreadable.
+_detect_cycle_jq() {
+  local proposed_id="$1"
+  local proposed_deps_csv="$2"
+
+  # Validate JSON is parseable.
+  if ! jq -e '.tasks' "$TASKS_FILE" >/dev/null 2>&1; then
+    echo "task-dag: cannot read tasks file (not valid JSON or missing .tasks)" >&2
+    return 3
+  fi
+
+  # Comma-split proposed parents into a JSON array.
+  local proposed_parents_json
+  if [ -z "$proposed_deps_csv" ]; then
+    proposed_parents_json='[]'
+  else
+    proposed_parents_json=$(printf '%s' "$proposed_deps_csv" \
+      | jq -R 'split(",") | map(select(length > 0))')
+  fi
+
+  # 3-color DFS in jq, iterative stack:
+  #   color: 0=white (unvisited), 1=gray (on current path), 2=black (done)
+  #   stack entries: {node, parents_remaining: [...]}
+  # We start DFS from proposed_id with proposed_parents grafted in.
+  # Cycle = walk encounters a gray node.
+  jq -e \
+    --arg pid "$proposed_id" \
+    --argjson parents "$proposed_parents_json" \
+    '
+      . as $root
+      # Build adjacency: existing tasks blocked_by + proposed override
+      | ($root.tasks | with_entries(.value = (.value.blocked_by // []))) as $baseAdj
+      | ($baseAdj + {($pid): $parents}) as $adj
+
+      # Initial state: gray = [pid], black = [], stack = [{node: pid, rem: parents}]
+      | {
+          color: {($pid): "gray"},
+          stack: [{node: $pid, rem: $parents}],
+          found: false
+        }
+      | until(.found or (.stack | length) == 0;
+          (.stack[-1]) as $top
+          | if ($top.rem | length) == 0 then
+              # done with this node; mark black, pop
+              .color[$top.node] = "black"
+              | .stack |= .[:-1]
+            else
+              # examine next parent
+              ($top.rem[0]) as $p
+              | .stack[-1].rem = $top.rem[1:]
+              | if ($adj[$p] | not) then
+                  # parent does not exist in adj (caller catches via existence check) — skip
+                  .
+                elif .color[$p] == "gray" then
+                  .found = true
+                elif .color[$p] == "black" then
+                  .  # already fully explored, no cycle through here
+                else
+                  # white: push
+                  .color[$p] = "gray"
+                  | .stack += [{node: $p, rem: ($adj[$p] // [])}]
+                end
+            end)
+      | .found | not  # true if NO cycle
+    ' "$TASKS_FILE" >/dev/null 2>&1
+  # jq -e: exit 0 if expression yields true (no cycle), exit 1 if false (cycle).
+  return $?
 }
 
 # ---------------------------------------------------------------------------
