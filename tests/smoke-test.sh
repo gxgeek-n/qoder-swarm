@@ -331,6 +331,14 @@ expect "task-dag.sh jq fallback: cycle reachable through existing X<->Y rejected
   "{ SWARM_HOME=$JQ_TMP SWARM_FORCE_JQ=1 $TMP_HOME/scripts/task-dag.sh add JZ z --depends JX 2>&1 || true; } | grep -q cycle"
 rm -rf "$JQ_TMP"
 
+# ─── v4 model-name validity check ─────────────────────────────────
+# Each agent's frontmatter `model:` must match qodercli --list-models
+# case-sensitively. Otherwise Qoder silently falls back to Auto routing
+# and the deliberate model tiering is lost.
+# verify-models.sh exits 0 only when all 7 agents pass Layer 1.
+expect "verify-models.sh: all swarm-* model names valid in Qoder catalog" \
+  "REPO_ROOT=$REPO_ROOT bash $TMP_HOME/scripts/verify-models.sh >/dev/null 2>&1"
+
 # ─────────────────────────────────────────────────────────────────────
 echo ""
 echo "[8/8] Uninstall round-trip"
