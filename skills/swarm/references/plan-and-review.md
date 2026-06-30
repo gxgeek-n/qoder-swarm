@@ -2,6 +2,10 @@
 
 4-stage adversarial planning. Total cost ~1.80x credit.
 
+### Stage 0 — Check memory (on-demand)
+
+Before launching Stage 1 research, `Glob .swarm/memory/*.md` and `Read` any file whose name obviously matches the task topic. See `docs/memory-protocol.md`. Skip if no obvious match.
+
 ## Stage 1 — Parallel research (CHEAP × 2)
 
 Emit TWO Agent calls in ONE message:
@@ -95,4 +99,12 @@ Surface to user:
 2. Gap verdict (CLEAR or N issues)
 3. Reviewer verdict (OKAY / ITERATE / REJECT)
 4. One-line next step: "Run `swarm:start-work` to execute" (if approved)
-5. Write `.swarm/plan-and-review/handoff.md` per the Inter-stage handoff template in `_shared.md` (Decided / Rejected / Risks / Files / Remaining).
+5. **MANDATORY** — Write `.swarm/plan-and-review/handoff.md` per the Inter-stage handoff template in `_shared.md`. The next stage (start-work) reads ONLY this handoff, not the full plan.md or gaps.md. This is how we keep context lean across stages.
+
+## Why handoff.md matters (token budget)
+
+`plan.md` + `gaps.md` + `verdict.md` easily run 1500+ lines combined. If `start-work` reads all three every time, the orchestrator's context spikes 10-15k tokens before dispatching any worker.
+
+The `handoff.md` template (≤30 lines) captures: what was decided, what was rejected, what files are touched, what risks remain. `start-work` reads `handoff.md` and only opens `plan.md` when it needs the exact acceptance command for a specific task.
+
+This pattern is borrowed from openai-agents-python `nest_handoff_history` (`src/agents/handoffs/history.py:71-112`) — compress prior transcript into one summary message instead of forwarding full history.

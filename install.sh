@@ -119,6 +119,11 @@ for f in "$SCRIPT_DIR/scripts/"*.py; do
   chmod +x "$QODER_HOME/scripts/$(basename "$f")"
   SCRIPT_COUNT=$((SCRIPT_COUNT+1))
 done
+for f in "$SCRIPT_DIR/scripts/"*.sh; do
+  cp "$f" "$QODER_HOME/scripts/"
+  chmod +x "$QODER_HOME/scripts/$(basename "$f")"
+  SCRIPT_COUNT=$((SCRIPT_COUNT+1))
+done
 echo "  ✓ Scripts installed ($SCRIPT_COUNT files)"
 
 # 5. Skill — primary entry mechanism (auto-triggered by description matching)

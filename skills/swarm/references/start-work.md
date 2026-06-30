@@ -47,6 +47,23 @@ DELIVERABLE: The JSON above, nothing else.
 
 This is **not** a flow constraint — the planner already wrote the deps; the parser just turns them into a schedule. If the plan was written without `depends_on` fields, fall back to "one wave per task in plan order" and warn the user.
 
+## Step 1.5 — Mirror to native TodoWrite (UI sync)
+
+Right after parsing the plan into waves, call the native `TodoWrite` tool with one todo per task:
+- description: `"{task-id}: {task title}"`
+- status: `"pending"` initially
+
+Update status to:
+- `"in_progress"` when the wave dispatches the task's worker
+- `"completed"` when its verification command passes
+- `"blocked"` when its dependency is `needs-fix`
+
+This makes wave progress visible in the user's main UI without requiring them to read .swarm/ files.
+
+Don't batch updates — emit a `TodoWrite` call as soon as a task's status changes (per the tool's own contract).
+
+Borrowed from: native Qoder TodoWrite + the existing dispatch pattern. Cost is near-zero (1 tool call per status change × N tasks) and unlocks visibility.
+
 ## Step 2 — Execute each wave
 
 For EACH wave, emit ALL its tasks as parallel Agent calls in ONE message:

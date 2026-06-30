@@ -119,6 +119,8 @@ expect "hooks/ has 2 swarm-*.sh"       "[ \$(ls $TMP_HOME/hooks/swarm-*.sh 2>/de
 expect "hooks are executable"          "[ -x $TMP_HOME/hooks/swarm-comment-checker.sh ] && [ -x $TMP_HOME/hooks/swarm-stop-continuation.sh ]"
 expect "scripts/image-diff.py present" "[ -f $TMP_HOME/scripts/image-diff.py ]"
 expect "scripts/image-diff.py exec"    "[ -x $TMP_HOME/scripts/image-diff.py ]"
+expect "scripts/truncate.sh present"  "[ -f $TMP_HOME/scripts/truncate.sh ]"
+expect "scripts/truncate.sh exec"     "[ -x $TMP_HOME/scripts/truncate.sh ]"
 expect "skills/swarm/SKILL.md"         "[ -f $TMP_HOME/skills/swarm/SKILL.md ]"
 expect "skills/swarm/references/ ≥ 10" "[ \$(ls $TMP_HOME/skills/swarm/references/*.md 2>/dev/null | wc -l) -ge 10 ]"
 expect "skills marker file present"    "[ -f $TMP_HOME/skills/swarm/.swarm-installed ]"

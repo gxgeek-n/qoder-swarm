@@ -78,6 +78,21 @@ Keep output under 500 tokens. This brief replaces reading the full ledger on nex
 DELIVERABLE: 1 file path + 1 line summary.
 ```
 
+### Planning interval (cost optimization)
+
+Default: re-plan every 3 iterations, not every iteration.
+
+Naive ulw-loop reruns the full planning prompt every iteration → wastes a HEAVY-tier LLM call on each cycle even when the plan hasn't fundamentally changed. smolagents observed that planning every 1-3 steps captures most of the benefit at a fraction of the cost.
+
+Rule:
+- Iterations 1, 4, 7, ... → run full planning step (Stage 2 of plan-and-review)
+- Iterations 2, 3, 5, 6, ... → execute previous plan's next undone task, no replan
+- Override: replan immediately if the previous iteration produced `verdict: REJECT` or any task moved from `done` back to `needs-fix`
+
+Save the active interval to `.swarm/ulw-loop/state.json` so context-manager / resume can preserve it.
+
+Borrowed from: smolagents `planning_interval` (src/smolagents/agents.py:305).
+
 ## Step 3 — Final report (CHEAP × 1)
 
 ```

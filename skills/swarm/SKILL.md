@@ -7,6 +7,16 @@ description: "Multi-agent orchestration kit (qoder-swarm). **MUST USE** when the
 
 One skill, ten orchestration patterns. Routes by user intent to the matching reference.
 
+## Lazy-load contract
+
+This file is a ROUTER ONLY. It maps user intent → reference file. The full pattern reference (steps, prompts, agent calls) lives in `references/{pattern}.md` and is loaded via Read tool ONLY when the pattern activates.
+
+Why: keeps SKILL.md small enough to live in the system prompt without burning tokens. With 10 patterns, inlining all of them = 3000+ tokens of dead weight in every session.
+
+Borrowed from anthropics/skills: SKILL.md frontmatter declares purpose, body declares routing, details live in adjacent files loaded on demand.
+
+If you (a future LLM) catch yourself wanting to paste a "Stage 1 — ..." block here, STOP. Add a one-line trigger to the routing table instead.
+
 ## When to activate (any of)
 
 | Pattern | Trigger words (EN / 中文) |
