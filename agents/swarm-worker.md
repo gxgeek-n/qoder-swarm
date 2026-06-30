@@ -7,7 +7,7 @@ model: GLM-5.2
 effort: medium
 timeoutMins: 20
 skills: [simplify, ast-grep, code-reading-skill]
-isolation: worktree
+isolation: default
 permissionMode: default
 color: green
 ---

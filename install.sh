@@ -157,7 +157,7 @@ for agent_file in "$SCRIPT_DIR/agents/"swarm-*.md; do
   cp "$agent_file" "$QODER_HOME/agents/"
   AGENT_COUNT=$((AGENT_COUNT+1))
 done
-echo "  ✓ Subagents installed: $AGENT_COUNT swarm-* (explorer/librarian/planner/reviewer/worker)"
+echo "  ✓ Subagents installed: $AGENT_COUNT swarm-* (explorer/librarian/planner/reviewer/worker/context-manager/error-coordinator)"
 
 # 7. Auto-register hooks into settings.json (idempotent, with backup)
 echo ""

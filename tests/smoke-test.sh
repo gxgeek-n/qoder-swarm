@@ -229,6 +229,26 @@ expect "user customField preserved after re-install" \
 
 # ─────────────────────────────────────────────────────────────────────
 echo ""
+echo "[7.5/8] Legacy skill archival"
+# ─────────────────────────────────────────────────────────────────────
+# Simulate a pre-existing user-managed skill directory with the old
+# .swarm-installed marker — the installer should archive it (not delete
+# user content) and leave non-swarm dirs untouched.
+mkdir -p "$TMP_HOME/skills/debugging"
+touch "$TMP_HOME/skills/debugging/.swarm-installed"
+echo "user content" > "$TMP_HOME/skills/debugging/user-note.txt"
+mkdir -p "$TMP_HOME/skills/not-swarm"
+echo "not ours" > "$TMP_HOME/skills/not-swarm/file.txt"
+
+bash "$REPO_ROOT/install.sh" "$TMP_HOME" >/dev/null 2>&1
+
+expect "archive dir created"        "[ -d $TMP_HOME/.swarm-archive ]"
+expect "legacy dir archived"        "[ ! -d $TMP_HOME/skills/debugging ]"
+expect "user content preserved"     "ls $TMP_HOME/.swarm-archive/*/debugging/user-note.txt"
+expect "non-swarm dir untouched"    "[ -d $TMP_HOME/skills/not-swarm ]"
+
+# ─────────────────────────────────────────────────────────────────────
+echo ""
 echo "[8/8] Uninstall round-trip"
 # ─────────────────────────────────────────────────────────────────────
 python3 "$REPO_ROOT/install-settings.py" --qoder-home "$TMP_HOME" --uninstall >/dev/null 2>&1
@@ -254,4 +274,7 @@ if [ "$FAIL" -gt 0 ]; then
   done
 fi
 echo "─────────────────────────────────────────"
+if [ "$FAIL" -eq 0 ]; then
+  echo "All $PASS assertions passed"
+fi
 exit "$FAIL"

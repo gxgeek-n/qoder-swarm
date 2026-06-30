@@ -35,6 +35,8 @@ RULES for criteria:
 
 Repeat until all criteria done OR max_iterations reached:
 
+If iteration ≥ 10 and `.swarm/ulw-loop/context-brief.md` does not exist, pause and run context compression first (see subsection below).
+
 For each iteration:
 1. Read `state.json`, find first pending criterion
 2. ONE Agent call (MID):
@@ -57,6 +59,24 @@ DELIVERABLE: what was done, which criterion attempted, pass or fail
 
 3. If criterion marked done → increment completed count
 4. Repeat
+
+### Context compression (when iterations > 10)
+
+When the ulw-loop reaches iteration 10 without converging, the accumulated ledger + state grows large. Dispatch the context-manager to compress before continuing.
+
+```
+Agent[swarm-context-manager]:
+TASK: Compress the ulw-loop execution context
+INPUT: .swarm/ulw-loop/state.json + .swarm/ulw-loop/ledger.jsonl
+OUTPUT: Write .swarm/ulw-loop/context-brief.md with:
+  - Task summary (1 line)
+  - Criteria completed vs remaining (table)
+  - Key decisions made (bullet list, max 5)
+  - Current blocker (if any)
+  - Recommended next action
+Keep output under 500 tokens. This brief replaces reading the full ledger on next iteration.
+DELIVERABLE: 1 file path + 1 line summary.
+```
 
 ## Step 3 — Final report (CHEAP × 1)
 

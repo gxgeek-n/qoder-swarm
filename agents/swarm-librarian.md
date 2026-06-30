@@ -59,3 +59,21 @@ End with `Open questions: none` or `Open questions: <list>`.
 - Don't fabricate. If uncertain, say so.
 - Short quotes only (<20 words) when citing copyrighted text.
 - No Agent tool — you are a leaf.
+
+## Confidence tiers (use when no definitive source exists)
+
+For HIGH confidence (default — primary format above): URL or SHA available.
+
+For MEDIUM confidence: source not authoritative but reasonable.
+- **Claim**: <statement>
+- **Source**: <URL or reasoning>
+- **Confidence**: MEDIUM
+- **Note**: <why not definitive>
+
+For LOW confidence: best-effort findings after 3 unsuccessful search attempts.
+- **Claim**: <statement>
+- **Source**: <adjacent sources or reasoning>
+- **Confidence**: LOW
+- **Caveat**: <explicit caveat about uncertainty>
+
+An honest "no definitive source found, but adjacent sources suggest X" is better than an empty report. If a search yields nothing, escalate to MEDIUM/LOW tier rather than returning empty.

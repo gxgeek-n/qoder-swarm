@@ -58,7 +58,7 @@ qoder-swarm/
 ├── install-settings.py            # I4: hook_command_path() builds dynamic paths
 ├── install.sh                     # I5: marker-based archive-not-delete
 ├── scripts/                       # standalone tools (image-diff, etc.)
-├── tests/smoke-test.sh            # 37 checks against this entire model
+├── tests/smoke-test.sh            # automated assertions against this entire model
 ├── dispatch-kit/                  # multi-session protocol (file-based, I3)
 └── docs/                          # research, plans, this file
 ```
@@ -76,10 +76,10 @@ State that gets written into user projects (I3):
 ## Non-invariants (things that can change freely)
 
 - Number of `references/*.md` (currently 11)
-- Number of `swarm-*` subagents (currently 5)
+- Number of `swarm-*` subagents (currently 7)
 - Specific tool lists in agent frontmatter — adjust per evolving Qoder doc
 - Reference doc structure (Stage 1 / Step 1 / etc.) — stylistic
-- Model names in agent frontmatter (efficient/performance) — re-tune as Qoder model catalog evolves
+- Model names in agent frontmatter (Qwen3.7-Max-DogFooding, ultimate, GLM-5.2, DeepSeek-V4-Flash — these are the shipped defaults, not tier labels) — re-tune as Qoder model catalog evolves
 - README sections — additive
 - Workflows under `workflows/*.mjs` — they're optional reference impls, not the source of truth
 

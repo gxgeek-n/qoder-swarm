@@ -26,7 +26,7 @@ qoder-swarm/
 ├── scripts/image-diff.py  ← numpy 像素 diff
 ├── dispatch-kit/          ← 多 session 文件协议 + tmux-launch.sh
 ├── workflows/*.mjs        ← 10 个可选 .mjs 引擎实现
-├── tests/smoke-test.sh    ← 39 项断言 ~5 秒
+├── tests/smoke-test.sh    ← 43 项断言 ~5 秒
 └── docs/research-2026.md  ← 4 个参考项目分析
 ```
 
@@ -111,7 +111,7 @@ cd /Users/gx/qoder-swarm && bash install.sh
 bash install.sh --doctor       # python3 / Pillow / git / qodercli
 
 # 跑 smoke test
-make test                       # 39 项 ~5 秒
+make test                       # 43 项 ~5 秒
 
 # 看安装状态
 make status                     # 列出实际安装的文件
@@ -169,6 +169,27 @@ ee5cc5f docs: research notes on 4 reference projects (2026-06)
 - ❌ 100+ subagent 平铺扩散
 - ❌ 给所有 agent 都用 ultimate（破坏成本结构）
 
+## 踩过的坑 / 避免重复
+
+### 1. `isolation: worktree` 要求 session cwd 是 git repo
+**症状**: `swarm-worker` 派发时报 `Failed to resolve base branch "HEAD": git rev-parse failed`，整波 7 个 worker 全挂。
+**根因**: 主 session 在 `/Users/gx`（非 repo），Qoder 试图在 cwd 建 worktree → HEAD 解析失败。即便 task 指向 `/Users/gx/qoder-swarm`（是 repo），worktree 创建发生在 dispatch 阶段，看的是 session cwd 不是 task cwd。
+**修复（已在 agents/swarm-worker.md 落地）**: `isolation: worktree` → `isolation: default`。worktree 改为按需 opt-in：orchestrator 知道目标是 repo 时，通过 Agent 工具的 `isolation: "worktree"` 参数显式启用。
+**铁律**: subagent frontmatter 里不要硬编码 `isolation: worktree`。worktree 是"运行期决策"，由调度方根据 cwd 是否 git repo 决定。
+
+### 2. sub-agent 输出截断 / 空 Done
+**症状**: `swarm-explorer` / `swarm-librarian` / `swarm-reviewer` 经常返回空（"Agent execution completed" 无内容）或 "fetch failed"。
+**根因**: AgentRunner 异常路径未 emit Done（CLAUDE.md §9 已记录）。具体到 qoder-swarm 的影响：sub-agent prompt 太严（要求 inline 返回长报告），output buffer 满或上游异常时整段丢。
+**workaround（已在 plan-and-review.md 实践）**: 所有 sub-agent prompt 强制 file-based 产出 —— "Write report to `.swarm/{stage}/report.md`. Final response = 5 lines confirming file path."。orchestrator 失败时直接读文件兜底。
+**铁律**: 关键 sub-agent 任务一律 file-based。inline 返回只用来传"文件位置 + 一句摘要"。
+**完美 fallback**: orchestrator 自己也要能完成 sub-agent 的工作（这次 gaps.md 就是 reviewer 截断后 orchestrator 手工跑 grep 兜底完成的）。
+
+### 3. 内置 Explore agent 没有 Write 工具
+**症状**: 派 Explore 让它把报告写盘 → "I'm operating in READ-ONLY mode and cannot create files"。
+**根因**: 内置 Explore agent 的 tools 不含 Write/Edit。
+**修复**: 需要写文件时用 `general-purpose` 而非 `Explore`。或 orchestrator 接收 inline 内容自己 Write 落盘（这次 librarian 用了后一种）。
+**铁律**: 写文件的 sub-agent 必须有 Write/Edit 工具 —— `Explore` 只读、`swarm-*` 自定义都有、`general-purpose` 全功能。
+
 ## 工作风格备忘
 
 用户偏好：
@@ -188,3 +209,20 @@ ee5cc5f docs: research notes on 4 reference projects (2026-06)
 ```
 
 `grep -r "概念" /tmp/research/` 看别人怎么处理。
+
+## 迭代 3.1 (2026-06-30 续) — self-bootstrap
+
+通过 `swarm:plan-and-review` → `swarm:start-work` → `swarm:five-agent-review` 自举完成。
+
+**改动 (15 files / 170+ insertions)**:
+- Wave 1: T1 doc sweep (5→7 subagents, 移除硬编码 assertion 数), T2 model tier docs (用真名替换 efficient/performance), T4 explorer 搜索约束放宽 (2→5 waves), T5 librarian 加 confidence tiers, T6 hardcoded ~/.qoder paths (visual-qa-strict + dispatch-kit), T11 smoke-test +legacy archival 测试 (22→43 assertions), T12 five-agent-review k-vote consensus (3/5 majority)
+- Wave 2: T7 ulw-loop wire context-manager, T8 start-work wire error-coordinator, T9 _shared.md routing table 加 2 行
+- Wave 3: T10 handoff template
+- Ad-hoc: swarm-worker.md isolation worktree→default (修 dispatch HEAD bug), 此 doc 加"踩过的坑"section
+
+**自举验证**: 5-agent review 第一轮 3 PASS / 2 FAIL (NEEDS-FIX per 新 k-vote 规则) → fixers 修 12 个 finding 后通过。
+
+**剩余可改进 (下次迭代)**:
+- dispatch-kit/tmux-launch.sh CI 覆盖
+- README customization 章节示例同步
+- Aone CI 验 43 assertions

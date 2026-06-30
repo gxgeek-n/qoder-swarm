@@ -11,7 +11,7 @@ Turn a single Qoder session into a multi-agent control room with model-tiered co
 | Feature | Origin | Description |
 |---------|--------|-------------|
 | **`swarm` Skill** (primary) | Original | One auto-triggered skill routes natural-language requests to 10 orchestration patterns |
-| 5 custom subagents | LazyCodex/OmO | `swarm-explorer/librarian/planner/reviewer/worker` with per-role model tiers |
+| 7 custom subagents | LazyCodex/OmO | `swarm-explorer/librarian/planner/reviewer/worker/context-manager/error-coordinator` with per-role model tiers |
 | Dispatch protocol | ThreadDeck | Multi-terminal collaboration via file system |
 | Comment-checker hook | LazyCodex | Post-edit AI-slop reminder |
 | Stop-continuation hook | LazyCodex | Pending-work alert on session end |
@@ -95,12 +95,14 @@ qoder-swarm/
 ├── skills/swarm/        # The 'swarm' Skill — primary entry point
 │   ├── SKILL.md         #   router with trigger words → reference dispatch
 │   └── references/      #   10 orchestration pattern playbooks
-├── agents/              # 5 custom subagents with per-role model tiers
-│   ├── swarm-explorer.md   # efficient/low — read-only codebase search
-│   ├── swarm-librarian.md  # efficient/low — external docs/OSS
-│   ├── swarm-planner.md    # performance/high — strategic planning
-│   ├── swarm-reviewer.md   # performance/high — adversarial review
-│   └── swarm-worker.md     # performance/medium — implementation (worktree-isolated)
+├── agents/              # 7 custom subagents with per-role models
+│   ├── swarm-explorer.md         # Qwen3.7-Max-DogFooding, low effort — read-only codebase search
+│   ├── swarm-librarian.md        # Qwen3.7-Max-DogFooding, low effort — external docs/OSS
+│   ├── swarm-planner.md          # ultimate, high effort — strategic planning
+│   ├── swarm-reviewer.md         # ultimate, high effort — adversarial review
+│   ├── swarm-worker.md           # GLM-5.2, default isolation — implementation
+│   ├── swarm-context-manager.md # DeepSeek-V4-Flash, low effort — context window management
+│   └── swarm-error-coordinator.md # DeepSeek-V4-Flash, medium effort — error recovery
 ├── workflows/           # 10 Workflow .mjs (optional, feature-gated)
 │   ├── plan-and-review.mjs
 │   ├── five-agent-review.mjs
@@ -135,11 +137,11 @@ qoder-swarm/
 
 ## Customizing swarm-* Subagents
 
-After installation, the 5 subagents live at `~/.qoder/agents/swarm-*.md`. Each is a Markdown file with YAML frontmatter. You can edit them to fit your environment without touching this repo.
+After installation, the 7 subagents live at `~/.qoder/agents/swarm-*.md`. Each is a Markdown file with YAML frontmatter. You can edit them to fit your environment without touching this repo.
 
 ### Switch underlying models
 
-Each subagent's `model:` field controls which LLM it uses. Default values are Qoder model tiers (`efficient`, `performance`). To force specific models:
+Each subagent's `model:` field controls which LLM it uses. Default values are specific model names (Qwen3.7-Max-DogFooding, ultimate, GLM-5.2, DeepSeek-V4-Flash) — see the subagent_type table in `skills/swarm/references/_shared.md`. To force specific models:
 
 ```yaml
 # ~/.qoder/agents/swarm-explorer.md
@@ -187,7 +189,7 @@ skills:
 permissionMode: acceptEdits     # auto-approve edits (less prompting)
 maxTurns: 20                    # more conversation turns
 timeoutMins: 30                 # longer runtime cap
-isolation: worktree             # run in separate git worktree
+isolation: worktree             # run in separate git worktree (shipped default is `isolation: default`; set worktree explicitly if cwd is a git repo)
 ```
 
 ### Override without editing files
@@ -214,18 +216,18 @@ This persists across `bash install.sh` re-runs.
 Run the smoke-test against a throwaway `QODER_HOME`. It leaves no trace on your real `~/.qoder/`:
 
 ```bash
-bash tests/smoke-test.sh           # 37 checks, ~5 seconds
+bash tests/smoke-test.sh           # ~5 seconds (assertion count printed by the test itself)
 bash tests/smoke-test.sh --keep    # leave the tmpdir for inspection
 bash tests/smoke-test.sh --verbose # print every command
 ```
 
-What it covers (37 assertions across 8 sections):
+What it covers (organized in 8 sections):
 
 | Section | Checks |
 |---------|--------|
 | Installer auxiliary commands | `--help` / `--version` / `--doctor`, rejects unknown options |
 | Fresh install | exit 0, all expected dirs/files created |
-| File layout | 10 workflows, 2 hooks (executable), image-diff.py, SKILL.md, 11 references, marker file, 5 swarm-* agents, dispatch templates, settings.json |
+| File layout | 10 workflows, 2 hooks (executable), image-diff.py, SKILL.md, 11 references, marker file, 7 swarm-* agents, dispatch templates, settings.json |
 | settings.json sanity | valid JSON, hook paths resolve under `QODER_HOME` (not hardcoded `~/.qoder/`) |
 | Agent frontmatter | YAML parses for every swarm-* agent, required fields present |
 | image-diff.py | output is valid JSON, similarity / diffPixels / hotspots match a known fixture |
@@ -257,7 +259,7 @@ Read these before running `bash install.sh` from a repo you didn't write.
 
 **Trust model of the subagents:**
 - `swarm-explorer` / `swarm-librarian` / `swarm-reviewer` are filesystem read-only via `disallowedTools: [Write, Edit, NotebookEdit]`
-- `swarm-worker` has full write access and runs with `isolation: worktree` so changes land in a separate git worktree the orchestrator merges
+- `swarm-worker` has full write access. The shipped default is `isolation: default` (not worktree-isolated). Orchestrators can request `isolation: worktree` at Agent call time when the cwd is a git repo.
 - `swarm-planner` has `Edit`/`Write` but is **prompt-enforced** to only touch `.swarm/plans/*.md`. The boundary is NOT filesystem-enforced — a maliciously crafted prompt could direct it elsewhere. Treat planner output the same way you treat any other LLM-generated code: review before relying on it.
 
 **Hostile-repo defense:**

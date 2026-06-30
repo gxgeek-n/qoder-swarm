@@ -73,15 +73,15 @@ Render this with any graphviz tool (or just read the labels) — it's a visualiz
 
 ## Model tiers — handled by the subagents, not the call site
 
-Qoder's `Agent` tool does NOT accept a `model` parameter. Per-role model selection happens in each `swarm-*` subagent's frontmatter (`model: efficient` for explorer/librarian, `model: performance` for planner/reviewer/worker). The legacy "CHEAP/MID/HEAVY" labels in reference docs map to which subagent_type you pick:
+Qoder's `Agent` tool does NOT accept a `model` parameter. Per-role model selection happens in each `swarm-*` subagent's frontmatter (Qwen3.7-Max-DogFooding for explorer/librarian, ultimate for planner/reviewer, GLM-5.2 for worker). The legacy "CHEAP/MID/HEAVY" labels in reference docs map to which subagent_type you pick:
 
 | Label in references | subagent_type | Default model |
 |---------------------|---------------|---------------|
-| `CHEAP` | `swarm-explorer` or `swarm-librarian` | `efficient` |
-| `MID`   | `swarm-worker` | `performance` |
-| `HEAVY` | `swarm-planner` or `swarm-reviewer` | `performance` (high effort) |
+| `CHEAP` | `swarm-explorer` or `swarm-librarian` | `Qwen3.7-Max-DogFooding` |
+| `MID`   | `swarm-worker` | `GLM-5.2` |
+| `HEAVY` | `swarm-planner` or `swarm-reviewer` | `ultimate` (high effort) |
 
-To force specific model names (e.g. `Qwen3.7-Max-DogFooding`, `GLM-5.2`), edit the `model:` field in `~/.qoder/agents/swarm-*.md` or use `settings.json` overrides. See the project README's "Customizing swarm-* Subagents" section.
+These are the shipped defaults. To force different specific models (e.g. `Qwen3.7-Max-DogFooding`, `GLM-5.2`), edit the `model:` field in `~/.qoder/agents/swarm-*.md` or use `settings.json` overrides. See the project README's "Customizing swarm-* Subagents" section.
 
 ## Composability — skill calls skill
 

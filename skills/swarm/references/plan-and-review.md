@@ -95,3 +95,4 @@ Surface to user:
 2. Gap verdict (CLEAR or N issues)
 3. Reviewer verdict (OKAY / ITERATE / REJECT)
 4. One-line next step: "Run `swarm:start-work` to execute" (if approved)
+5. Write `.swarm/plan-and-review/handoff.md` per the Inter-stage handoff template in `_shared.md` (Decided / Rejected / Risks / Files / Remaining).

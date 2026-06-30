@@ -1,6 +1,6 @@
 # five-agent-review
 
-5 parallel reviewers. ALL must PASS for overall PASS. Cost ~2.40x.
+Five reviewers vote independently. 4/5 PASS or better → DONE; 3/5 → NEEDS-FIX; 2/5 or worse → REJECT. Cost ~2.40x. Full aggregation rules in the Verdict aggregation section below.
 
 ## Step 1 — Gather context (CHEAP × 1, or direct Bash)
 
@@ -70,7 +70,7 @@ DELIVERABLE: <verdict>PASS|FAIL</verdict> <discovered_context> <blocking_issues>
 
 ```
 # Review Report
-## Overall Verdict: PASSED / FAILED  (ALL 5 must PASS)
+## Overall Verdict: k-vote consensus — see Verdict aggregation section for outcome thresholds
 
 | Area | Verdict |
 | Goal | ... |
@@ -82,6 +82,18 @@ DELIVERABLE: <verdict>PASS|FAIL</verdict> <discovered_context> <blocking_issues>
 ## Blocking Issues (deduplicated, with file:line)
 ## Recommendations (prioritized fix order)
 ```
+
+## Verdict aggregation
+
+After all 5 reviewers return independently, aggregate verdicts:
+(k-vote = each reviewer votes PASS/FAIL independently, then aggregate by the rules below)
+
+- **5/5 PASS** → DONE (all clear, no action)
+- **4/5 PASS** → DONE-WITH-NOTE (dissenter's concern documented, no blocker)
+- **3/5 PASS** → NEEDS-FIX (majority found issues, fix and re-review)
+- **2/5 PASS or fewer** → REJECT (back to plan-and-review)
+
+Independent review requirement: reviewers MUST NOT see each other's verdicts before submitting their own. The parallel Agent call pattern in this skill already ensures isolation — do not let reviewers chat or read each other's output mid-review.
 
 ## Hard rules
 

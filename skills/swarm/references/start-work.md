@@ -6,6 +6,7 @@ Pure orchestration. **Main agent NEVER writes code.**
 
 If no plan exists in `.swarm/plan-and-review/` or user didn't supply a plan:
 → Run `plan-and-review.md` flow first, then continue.
+If `.swarm/plan-and-review/handoff.md` exists, read it first (per the Inter-stage handoff template in `_shared.md`) — it summarizes what the planning stage decided and what risks to watch for.
 
 ## Step 1 — Parse plan into dependency-graph waves (CHEAP × 1)
 
@@ -84,6 +85,26 @@ Overall: DONE or NEEDS-WORK + items to fix
 SCOPE: Verification only. Don't fix.
 VERIFY: Verifier must be DIFFERENT context from workers (it is — separate Agent).
 ```
+
+## Step 4 — Failure recovery (when any item is needs-fix)
+
+If Step 3 returns any `needs-fix` items, before re-spawning workers, classify the failures so we batch correctly.
+
+```
+Agent[swarm-error-coordinator]:
+TASK: Classify failures from the verification report
+INPUT: Review report showing needs-fix items + the original plan
+OUTPUT: For each failed item, one classification:
+  - SAME_ROOT_CAUSE: likely shares an underlying issue with another fail (batch-fix)
+  - INDEPENDENT: separate issue (fix individually)
+  - CASCADE: caused by another failure (fix the root first, this one likely resolves)
+  - FLAKY: intermittent (re-run verification before re-fix)
+  Confidence: HIGH | MEDIUM | LOW per classification
+DELIVERABLE: Recovery plan — which items to fix, in what order, with which workers.
+SCOPE: Analysis only. Do not edit code or run fixes.
+```
+
+If error-coordinator agent is not installed (e.g., qoder-swarm not installed), fall back to manual triage: orchestrator reads the verification report and groups items by inferred root cause.
 
 ## Hard rules
 

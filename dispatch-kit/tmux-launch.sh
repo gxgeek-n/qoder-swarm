@@ -14,9 +14,11 @@
 #   1. .dispatch/registry.yml exists (run `bash init-dispatch.sh` first)
 #   2. `qodercli` is on PATH
 #   3. `tmux` is installed
-#
+# QODER_HOME is configurable (defaults to $HOME/.qoder).
 # After launch: you type in the first pane (controller) and work
 # happens across all panes. Close the session with: tmux kill-session -t <name>
+
+QODER_HOME="${QODER_HOME:-$HOME/.qoder}"
 
 set -euo pipefail
 
@@ -36,7 +38,7 @@ fi
 REGISTRY="$PROJECT/.dispatch/registry.yml"
 if [ ! -f "$REGISTRY" ]; then
   echo "Error: $REGISTRY not found." >&2
-  echo "Run: bash ~/.qoder/dispatch-kit/init-dispatch.sh $PROJECT" >&2
+  echo "Run: bash \"$QODER_HOME/dispatch-kit/init-dispatch.sh\" $PROJECT" >&2
   exit 1
 fi
 

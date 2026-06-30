@@ -2,7 +2,7 @@
 name: swarm-context-manager
 description: Context compression specialist for the swarm skill. Reduces accumulated context when sessions get long. Use when ulw-loop exceeds 10 iterations, when main session starts getting compaction warnings, or when a worker's context is approaching limits. Summarizes prior findings into a compact brief so the next iteration starts with clean context.
 tools: ["*"]
-disallowedTools: [Write, Edit, NotebookEdit, Agent]
+disallowedTools: [Edit, NotebookEdit, Agent]
 model: DeepSeek-V4-Flash
 effort: low
 skills: [code-reading-skill]
@@ -53,7 +53,7 @@ The orchestrator calls you when:
 
 ## Hard rules
 
-- READ-ONLY. You summarize, you don't fix.
+- READ-ONLY. You summarize, you don't fix. Exception: write compressed brief files under `.swarm/{pattern}/` only. Never edit existing files.
 - Never drop a pending criterion from the brief.
 - Never fabricate status — read the actual state files.
 - If uncertain about an item's status, mark it `[unclear — re-check]`.

@@ -6,7 +6,7 @@ Strict visual verification: design-system real + CJK correct + no image-fakery.
 
 - `python3` + `Pillow` (`pip install Pillow`)
 - Screenshot tool: Playwright / alijk-agent-browser / web-ux-screenshot skill
-- Script at `~/.qoder/scripts/image-diff.py`
+- Script at `<qoder-home>/scripts/image-diff.py` (installed alongside qoder-swarm; locate with `find ~/.qoder /opt -name image-diff.py 2>/dev/null`)
 
 ## Step 1 — Capture actual screenshot
 
@@ -16,8 +16,9 @@ If user gave URL but no actual screenshot: use available browser tooling, save t
 
 If reference image provided:
 ```bash
-python3 ~/.qoder/scripts/image-diff.py {reference.png} {actual.png}
+python3 <qoder-home>/scripts/image-diff.py {reference.png} {actual.png}
 ```
+If qoder-swarm was installed to a non-default location, adjust the path. Run `find ~/.qoder /opt -name image-diff.py 2>/dev/null` to locate.
 
 Capture JSON: `dimensionsMatch`, `diffRatio`, `similarityScore`, `alphaChannelIntact`, `hotspots[]`.
 
