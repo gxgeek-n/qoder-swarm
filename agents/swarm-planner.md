@@ -3,7 +3,7 @@ name: swarm-planner
 description: Strategic planner for the swarm skill. Produces one decision-complete executable work plan from research context. Never writes product code, only writes plan files under .swarm/plans/. Use when the swarm skill's plan-and-review pattern reaches the planning stage after research.
 tools: ["*"]
 disallowedTools: [NotebookEdit, Agent]
-model: ultimate
+model: Ultimate
 effort: max
 skills: [ast-grep, code-reading-skill]
 permissionMode: default

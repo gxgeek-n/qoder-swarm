@@ -38,8 +38,8 @@ qoder-swarm/
 | swarm-librarian | **Qwen3.7-Max-DogFooding** (0.00x 免费) | low | — | 外部文档/OSS |
 | swarm-context-manager | DeepSeek-V4-Flash (0.10x) | low | — | 长 session 上下文压缩 |
 | swarm-error-coordinator | DeepSeek-V4-Flash (0.10x) | medium | — | 多 worker 失败时的恢复路由 |
-| **swarm-planner** | **ultimate** (1.0x) | high | 0.2 | 规划（杠杆点不打折） |
-| **swarm-reviewer** | **ultimate** (1.0x) | high | 0 | 审查（最后一道门） |
+| **swarm-planner** | **Ultimate** (1.0x) | high | 0.2 | 规划（杠杆点不打折） |
+| **swarm-reviewer** | **Ultimate** (1.0x) | high | 0 | 审查（最后一道门） |
 | swarm-worker | GLM-5.2 (0.60x) | medium | — | 实现（worktree 隔离） |
 
 **说明**：maxTurns 全部已删（用 Qoder 默认 200）。worker 保留 `timeoutMins: 20` + `isolation: worktree`。所有 agent `tools: ["*"]` + `disallowedTools: [...]` 黑名单。

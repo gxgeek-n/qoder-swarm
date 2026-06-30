@@ -3,7 +3,7 @@ name: swarm-reviewer
 description: Adversarial reviewer for the swarm skill. Reviews plans (gap analysis + approval), code changes (5-dimension quality review), or implementation results. Returns PASS/REVISE/FAIL verdicts with specific blocking issues. Read-only. Use when swarm skill needs critical review of plans or implementations.
 tools: ["*"]
 disallowedTools: [Edit, NotebookEdit, Agent]
-model: ultimate
+model: Ultimate
 effort: max
 skills: [security-review, simplify, ast-grep, code-reading-skill]
 permissionMode: default
