@@ -119,8 +119,14 @@ expect "hooks/ has 2 swarm-*.sh"       "[ \$(ls $TMP_HOME/hooks/swarm-*.sh 2>/de
 expect "hooks are executable"          "[ -x $TMP_HOME/hooks/swarm-comment-checker.sh ] && [ -x $TMP_HOME/hooks/swarm-stop-continuation.sh ]"
 expect "scripts/image-diff.py present" "[ -f $TMP_HOME/scripts/image-diff.py ]"
 expect "scripts/image-diff.py exec"    "[ -x $TMP_HOME/scripts/image-diff.py ]"
-expect "scripts/truncate.sh present"  "[ -f $TMP_HOME/scripts/truncate.sh ]"
-expect "scripts/truncate.sh exec"     "[ -x $TMP_HOME/scripts/truncate.sh ]"
+expect "scripts/truncate.sh present"      "[ -f $TMP_HOME/scripts/truncate.sh ]"
+expect "scripts/truncate.sh exec"         "[ -x $TMP_HOME/scripts/truncate.sh ]"
+expect "scripts/task-dag.sh present"       "[ -f $TMP_HOME/scripts/task-dag.sh ]"
+expect "scripts/task-dag.sh exec"          "[ -x $TMP_HOME/scripts/task-dag.sh ]"
+expect "scripts/file-overlap.sh present"   "[ -f $TMP_HOME/scripts/file-overlap.sh ]"
+expect "scripts/file-overlap.sh exec"      "[ -x $TMP_HOME/scripts/file-overlap.sh ]"
+expect "scripts/swarm-state.sh present"    "[ -f $TMP_HOME/scripts/swarm-state.sh ]"
+expect "scripts/swarm-state.sh exec"       "[ -x $TMP_HOME/scripts/swarm-state.sh ]"
 expect "skills/swarm/SKILL.md"         "[ -f $TMP_HOME/skills/swarm/SKILL.md ]"
 expect "skills/swarm/references/ ≥ 10" "[ \$(ls $TMP_HOME/skills/swarm/references/*.md 2>/dev/null | wc -l) -ge 10 ]"
 expect "skills marker file present"    "[ -f $TMP_HOME/skills/swarm/.swarm-installed ]"
@@ -128,6 +134,37 @@ expect "agents/ has ≥5 swarm-*.md"     "[ \$(ls $TMP_HOME/agents/swarm-*.md 2>
 expect "dispatch-kit registry.yml"     "[ -f $TMP_HOME/dispatch-kit/registry.yml ]"
 expect "dispatch-kit templates/"       "[ \$(ls $TMP_HOME/dispatch-kit/templates/*.md 2>/dev/null | wc -l) -ge 3 ]"
 expect "settings.json created"         "[ -f $TMP_HOME/settings.json ]"
+
+# ─── v3 functional tests ─────────────────────────────────────────
+# Test task-dag.sh: add, list, done, auto-unblock
+DAG_TMP="${TMP_HOME}/dag-test"
+mkdir -p "$DAG_TMP/.swarm"
+(
+  cd "$DAG_TMP"
+  SWARM_HOME="$DAG_TMP" "$TMP_HOME/scripts/task-dag.sh" add A "task A" --owner test >/dev/null 2>&1
+  SWARM_HOME="$DAG_TMP" "$TMP_HOME/scripts/task-dag.sh" add B "task B" --depends A --owner test >/dev/null 2>&1
+)
+expect "task-dag.sh basic add creates 2 tasks" \
+  "[ \"\$(SWARM_HOME=$DAG_TMP \"$TMP_HOME/scripts/task-dag.sh\" list 2>/dev/null | grep -c '^[AB]')\" = \"2\" ]"
+expect "task-dag.sh B is blocked while A pending" \
+  "SWARM_HOME=$DAG_TMP \"$TMP_HOME/scripts/task-dag.sh\" list --status blocked 2>/dev/null | grep -q '^B'"
+(
+  cd "$DAG_TMP"
+  SWARM_HOME="$DAG_TMP" "$TMP_HOME/scripts/task-dag.sh" done A >/dev/null 2>&1
+)
+expect "task-dag.sh auto-unblock: B becomes pending after A done" \
+  "SWARM_HOME=$DAG_TMP \"$TMP_HOME/scripts/task-dag.sh\" list --status pending 2>/dev/null | grep -q '^B'"
+rm -rf "$DAG_TMP"
+
+# Test file-overlap.sh: no-op case (HEAD vs HEAD)
+expect "file-overlap.sh HEAD vs HEAD returns 'No overlap'" \
+  "(cd \"$REPO_ROOT\" 2>/dev/null && \"$TMP_HOME/scripts/file-overlap.sh\" check HEAD HEAD 2>/dev/null | grep -q 'No overlap')"
+
+# Test swarm-state.sh: wrapper forwards correctly
+expect "swarm-state.sh --help shows Usage" \
+  "\"$TMP_HOME/scripts/swarm-state.sh\" --help 2>/dev/null | grep -q 'Usage'"
+expect "swarm-state.sh status runs without error on fresh dir" \
+  "(cd /tmp && SWARM_HOME=/tmp/empty-swarm-test-\$\$ \"$TMP_HOME/scripts/swarm-state.sh\" status 2>/dev/null | grep -E 'Tasks|Memory' >/dev/null)"
 
 # ─────────────────────────────────────────────────────────────────────
 echo ""

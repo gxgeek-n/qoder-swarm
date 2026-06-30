@@ -197,3 +197,45 @@ Before starting any pattern (plan-and-review / start-work / debugging / etc), th
 See `docs/memory-protocol.md` for the write/read format. Cost is 1 Glob per pattern start (free); Read only when topic obviously matches.
 
 Borrowed from: navigator.ai (on-demand context loading) + anthropics/skills (lazy skill activation).
+
+## ProgressLedger 协议（来自 magentic-loop）
+
+**Source**: SK Magentic One (`semantic-kernel/python/semantic_kernel/agents/orchestration/prompts/_magentic_prompts.py:63-111`)
+**Detailed pattern**: `references/magentic-loop.md`
+
+When using the `magentic-loop` pattern, the orchestrator makes 1 LLM call per round using the ProgressLedger schema:
+
+### Schema (5 fields, each with reason + answer)
+
+```json
+{
+  "is_request_satisfied": {"reason": "...", "answer": boolean},
+  "is_in_loop": {"reason": "...", "answer": boolean},
+  "is_progress_being_made": {"reason": "...", "answer": boolean},
+  "next_speaker": {"reason": "...", "answer": "<one of participant_names>"},
+  "instruction_or_question": {"reason": "...", "answer": "<concrete instruction>"}
+}
+```
+
+### JSON parse failure (3-strikes)
+
+1. Direct parse fails → strip markdown fences (` ```json ... ``` `), retry parse
+2. Still fails → re-call LLM with suffix "OUTPUT ONLY VALID JSON. NO MARKDOWN."
+3. Still fails → fall back to **round-robin** speaker selection (see below), log `.swarm/magentic/{session}/anomalies.log`
+
+### Stall detection rules
+
+- `is_in_loop.answer == true` OR `!is_progress_being_made.answer` → `stall_count += 1`
+- `stall_count >= max_stall` (default 3) AND `reset_count < max_reset` (default 3) → trigger replan via `prompts/replan.md`
+- After 3 stalls + 3 replans exhausted → terminate with partial result (last assistant message from chat_history)
+
+### Round-robin fallback definition
+
+See `references/magentic-loop.md` § "Round-robin fallback" for the canonical algorithm. In short: modular index into `state.team` using `state.round_count`, skipping any agent the orchestrator marked unavailable. Never re-implement this in another file — link here.
+
+### Hard rules
+
+- `next_speaker.answer` MUST be in `participant_names` (else 1 retry, then round-robin)
+- ledger.jsonl record format: `{"round": <int>, "timestamp": <ISO-8601>, "ledger": <full ProgressLedger JSON>}`
+- partial result on limits hit: last assistant message; if none, return `{"status": "INCOMPLETE", "reason": "<limit-name> exhausted", "rounds_used": N}`
+- Never make multiple speaker selections per round — one ProgressLedger → one dispatch

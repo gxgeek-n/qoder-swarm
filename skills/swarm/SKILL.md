@@ -1,17 +1,17 @@
 ---
 name: swarm
-description: "Multi-agent orchestration kit (qoder-swarm). **MUST USE** when the user says: 多个subagent / 多 agent / parallel agents / 并行执行 / 对抗审查 / 对抗审查下 / 你确定可行 / 代码review / code review / 审查代码 / 代码review了么 / 5-agent review / plan-and-review / start-work / ulw-loop / ultraresearch / init-deep / visual QA / team mode / 团队模式 / 一直跑到完成 / 规划+实现+审查 / 走完整流程 / 多角色 / cross-session / 深度研究 / 彻底研究 / 清理AI代码 / remove slop / 仔细排查 / 仔细排查下 / 顶层设计 / 端到端模拟测试 / 端到端验证 / parallel tool_use / 并发 tool_use. **ALSO USE** for tasks needing: (a) 5+ steps across multiple files; (b) parallel dispatch of independent subtasks; (c) adversarial review by an INDEPENDENT reviewer (not self-review); (d) long-running loops with evidence checkpoints; (e) cross-Qoder-session coordination; (f) ANY '你确定？' / '对抗审查下' / '严格 review 下' phrasing which signals user wants an independent second opinion. Prefer swarm OVER plain Agent/general-purpose when the user signals multi-step / parallel / review / orchestration. For single-file edits, quick lookups, online diagnosis, or single-domain operations, defer to the more specific skill (diagnose, code-reading-skill, tech-prd-v2, etc.) — but if you find yourself about to spawn 2+ Agents for the same goal, use swarm instead. Routes to one of 10 patterns via references/*.md with model tiering (free Qwen for search, Ultimate for planner+reviewer, GLM for workers)."
+description: "Multi-agent orchestration kit (qoder-swarm). **MUST USE** when the user says: 多个subagent / 多 agent / parallel agents / 并行执行 / 对抗审查 / 对抗审查下 / 你确定可行 / 代码review / code review / 审查代码 / 代码review了么 / 5-agent review / plan-and-review / start-work / ulw-loop / ultraresearch / init-deep / visual QA / team mode / 团队模式 / 一直跑到完成 / 规划+实现+审查 / 走完整流程 / 多角色 / cross-session / 深度研究 / 彻底研究 / 清理AI代码 / remove slop / 仔细排查 / 仔细排查下 / 顶层设计 / 端到端模拟测试 / 端到端验证 / parallel tool_use / 并发 tool_use. **ALSO USE** for tasks needing: (a) 5+ steps across multiple files; (b) parallel dispatch of independent subtasks; (c) adversarial review by an INDEPENDENT reviewer (not self-review); (d) long-running loops with evidence checkpoints; (e) cross-Qoder-session coordination; (f) ANY '你确定？' / '对抗审查下' / '严格 review 下' phrasing which signals user wants an independent second opinion. Prefer swarm OVER plain Agent/general-purpose when the user signals multi-step / parallel / review / orchestration. For single-file edits, quick lookups, online diagnosis, or single-domain operations, defer to the more specific skill (diagnose, code-reading-skill, tech-prd-v2, etc.) — but if you find yourself about to spawn 2+ Agents for the same goal, use swarm instead. Routes to one of 11 patterns via references/*.md with model tiering (free Qwen for search, Ultimate for planner+reviewer, GLM for workers)."
 ---
 
 # swarm — Multi-Agent Orchestration Kit
 
-One skill, ten orchestration patterns. Routes by user intent to the matching reference.
+One skill, eleven orchestration patterns. Routes by user intent to the matching reference.
 
 ## Lazy-load contract
 
 This file is a ROUTER ONLY. It maps user intent → reference file. The full pattern reference (steps, prompts, agent calls) lives in `references/{pattern}.md` and is loaded via Read tool ONLY when the pattern activates.
 
-Why: keeps SKILL.md small enough to live in the system prompt without burning tokens. With 10 patterns, inlining all of them = 3000+ tokens of dead weight in every session.
+Why: keeps SKILL.md small enough to live in the system prompt without burning tokens. With 11 patterns, inlining all of them = 3000+ tokens of dead weight in every session.
 
 Borrowed from anthropics/skills: SKILL.md frontmatter declares purpose, body declares routing, details live in adjacent files loaded on demand.
 
@@ -31,6 +31,7 @@ If you (a future LLM) catch yourself wanting to paste a "Stage 1 — ..." block 
 | `visual-qa-strict` | "visual QA" / "screenshot diff" / "视觉验证" / "截图对比" / CJK issues |
 | `teammode` | "team mode" / "make a team" / "团队模式" / "多人协作" |
 | `ulw-loop` | "ulw-loop" / "keep going" / "一直跑到完成" |
+| `magentic-loop` | "magentic" / "group conversation" / "群对话" / "speaker selection" / "iterative debate" / "对辩收敛" / multi-agent + complex decision / "讨论收敛" |
 
 ### Decision diagram — pick one pattern
 
@@ -117,7 +118,18 @@ swarm/
     ├── visual-qa-strict.md           ← pixel diff + dual oracle
     ├── teammode.md                   ← persistent multi-session team
     ├── ulw-loop.md                   ← self-loop with evidence ledger
+    ├── magentic-loop.md              ← group conversation with speaker selection
     └── _shared.md                    ← TASK template, error handling, retry rules
+```
+
+```
+swarm/
+└── prompts/
+    ├── progress-ledger.md            ← progress ledger prompt
+    ├── task-ledger-facts.md          ← task ledger facts prompt
+    ├── task-ledger-plan.md           ← task ledger plan prompt
+    ├── replan.md                     ← replan prompt
+    └── context-recovery.md          ← context recovery prompt
 ```
 
 ## Critical: when this skill activates
