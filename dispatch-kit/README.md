@@ -51,3 +51,27 @@ Terminal 3 (test):       qoder  →  读 inbox/test.md，跑测试，写 outbox/
 - `task-handoff.md` — 派发任务给 worker
 - `evidence-handoff.md` — worker 间传递证据
 - `worker-result.md` — worker 回报结果
+
+## Integration with swarm-coord-protocol
+
+dispatch-kit and swarm-coord-protocol serve the same purpose at different scales:
+
+| | dispatch-kit (multi-terminal) | swarm-coord-protocol (single-session parallel) |
+|---|---|---|
+| **Communication** | File inbox/outbox per terminal | Agent tool parallel dispatch |
+| **State** | `.dispatch/registry.yml` | `.swarm/tasks.json` via task-dag.sh |
+| **Coordination** | Human reads outbox, writes inbox | Orchestrator reads inline returns |
+| **Use case** | Long-running parallel sessions (hours/days) | Single orchestration pass (minutes) |
+
+**When to use which:**
+- **Single session, short tasks** → swarm-coord-protocol (start-work pattern dispatches parallel workers within one orchestrator session)
+- **Multi-session, long-running** → dispatch-kit (each terminal is an independent Qoder session, communicating via filesystem)
+- **Hybrid** → Use both: the controller terminal runs swarm patterns internally, while other terminals watch their inbox for cross-session tasks
+
+**Shared concepts (templates ↔ protocol mapping):**
+- `templates/task-handoff.md` ↔ plan.md task schema (Goal = description, Scope = files, Acceptance = acceptance)
+- `templates/worker-result.md` ↔ 200-token return contract (Status + Changed Files + Verification + Next)
+- `templates/evidence-handoff.md` ↔ handoff.md inter-stage template (Decided / Rejected / Risks / Files / Remaining)
+
+**Upgrade path (v5+):**
+dispatch-kit's inbox will migrate from single-file markdown to per-message JSON (ported from OmO team-core). See `dispatch-kit/schema/message.json` for the message schema.

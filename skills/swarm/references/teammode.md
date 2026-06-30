@@ -92,3 +92,24 @@ If issues:
 ## Cross-session use
 
 Filesystem-based state means any Qoder session that opens this project sees the team. Stop-continuation hook (if installed) alerts about active teams. Members can be separate Qoder sessions monitoring their inbox.
+
+## OmO-style team inbox (v5 upgrade path)
+
+The dispatch-kit `templates/*.md` approach works for human-in-the-loop multi-terminal. For automated team coordination (where the leader is also an LLM), OmO uses per-message JSON files:
+
+```
+.dispatch/inbox/{role}/{timestamp}-{uuid}.json
+```
+
+Each message conforms to `dispatch-kit/schema/message.json`. Benefits over single-file markdown:
+- **Atomic writes**: one message per file = no partial-read risk
+- **Ordering**: filename contains timestamp, `ls | sort` gives chronological order
+- **Schema validation**: consumer can validate JSON before processing
+- **Malformed tolerance**: bad messages get logged and skipped, don't break the queue
+- **Concurrent safety**: multiple writers create different files, no collision
+
+The leader writes to `inbox/{role}/`, the worker reads all files in its inbox dir sorted by timestamp, processes each, and moves processed files to `inbox/{role}/.consumed/` (or deletes).
+
+This is the same pattern as `swarm-coord-protocol.md`'s claim-based consumption (which uses `.consumed` rename + dead-letter quarantine), applied to the multi-terminal case.
+
+Source: OmO `packages/team-core/src/team-mailbox/inbox.ts` (MIT).
