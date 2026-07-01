@@ -400,3 +400,21 @@ Rejected: D.1 jitter (no 429 evidence), D.4 donation pool (single-user)
 - ALWAYS on swarm auto-commits (commits made by the orchestrator per auto-execution boundary).
 - OPTIONAL on user-directed commits (when user says "commit this").
 - The orchestrator self-evaluates: was this reviewed? what wasn't tested? what was the scope?
+
+## Wiki confidence lifecycle
+
+Wiki pages carry `confidence` and `last_confirmed` frontmatter fields. Confidence
+decays over time and strengthens with reinforcement (LLM Wiki v2 pattern).
+
+**Levels**: `HIGH` > `MEDIUM` > `LOW`
+
+**Tool**: `scripts/wiki-confidence.py <vault> [--report] [--decay] [--reinforce <page>]`
+
+| Command | Action |
+|---------|--------|
+| `--report` (default) | Print per-page confidence, age, and last_confirmed |
+| `--decay` | Pages with `last_confirmed` > 30 days: drop one level (HIGH→MEDIUM→LOW). Pages without confidence field: add `MEDIUM` + `last_confirmed` from file mtime |
+| `--reinforce <page>` | Set `confidence=HIGH` + `last_confirmed=today` for one page |
+
+Pages without frontmatter are skipped (raw files never modified). stdlib only,
+no PyYAML dependency.

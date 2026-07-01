@@ -26,6 +26,11 @@ SWARM_HOOKS = {
             "script": "subagent-tracker.py",
             "timeout": 5,
         },
+        {
+            "matcher": "Agent",
+            "script": "pre-tool-enforcer.py",
+            "timeout": 5,
+        },
     ],
     "PostToolUse": [
         {
@@ -47,6 +52,11 @@ SWARM_HOOKS = {
             "matcher": "Agent",
             "script": "subagent-tracker.py",
             "timeout": 5,
+        },
+        {
+            "matcher": "Agent",
+            "script": "swarm-wiki-ingest.py",
+            "timeout": 10,
         },
     ],
     "Stop": [
