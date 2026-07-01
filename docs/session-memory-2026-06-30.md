@@ -226,3 +226,25 @@ ee5cc5f docs: research notes on 4 reference projects (2026-06)
 - dispatch-kit/tmux-launch.sh CI 覆盖
 - README customization 章节示例同步
 - Aone CI 验 43 assertions
+
+## 迭代 7 (2026-07-01 续) — 知识管理集成
+
+obsidian-wiki (MIT, github.com/Ar9av/obsidian-wiki) 直接集成：
+- `pip install obsidian-wiki` 或直接 clone + symlink
+- 35 个 wiki skills 已 symlink 到 `~/.qoder/skills/` (llm-wiki, wiki-ingest, wiki-query, wiki-lint, wiki-synthesize, wiki-update, cross-linker 等)
+- Vault 初始化: `~/Documents/qoder-swarm-wiki/` (Karpathy LLM Wiki 三层架构)
+- 架构: raw sources (qoder-swarm 代码) → wiki (LLM 维护的结构化 md) → schema (AGENTS.md 约定)
+- 触发: "wiki ingest" / "wiki query" / "wiki lint" / "wiki update" / "记住这个" / "wiki this"
+- Obsidian 打开 vault 看 graph view
+
+不自己造轮子。obsidian-wiki 是最成熟的 LLM Wiki 实现 (Karpathy 推荐)，直接用。
+
+### 什么替代了什么
+
+| 之前 | 现在 |
+|---|---|
+| docs/memory-protocol.md (概念) | obsidian-wiki 35 skills (实现) |
+| .swarm/memory/*.md (手工) | ~/Documents/qoder-swarm-wiki/ (LLM 自动维护) |
+| 无 wiki-links | [[wiki-links]] + index.md + log.md |
+| 无 lint | wiki-lint (orphan/stale/contradiction detection) |
+| 无 knowledge graph | Obsidian graph view + cross-linker skill |
