@@ -141,6 +141,63 @@ After deciding which pattern applies:
 
 When in doubt between two patterns, pick the more specific one. When user says "just plan and execute and review", chain `plan-and-review` → `start-work` → `five-agent-review`.
 
+## Auto-execution boundary (after review PASSES)
+
+When any adversarial review stage returns a positive verdict — Hyperplan `ROBUST`, Stage 4 Reviewer `OKAY`, five-agent-review `5/5 PASS` or `4/5 PASS` — the orchestrator has a green light to proceed WITHOUT asking the user. But green light ≠ blanket auto-pilot. Auto-execute only reversible actions; stop and ask for irreversible ones.
+
+### ✅ Auto-execute (reversible — can be undone with git reset / rm / edit)
+
+- Local file modifications (agents write to disk)
+- `git add` + `git commit` to local branch
+- `git push` to the current branch's remote (assumes non-main; if main and no other reviewer gate, still auto — treat push as reversible via git revert)
+- Run smoke / eval / verify-models / any local test
+- Write memory to `.swarm/memory/`
+- Advance to the next swarm stage (plan-and-review → start-work → five-agent-review)
+- Generate reports / artifacts under `.swarm/` or `docs/`
+
+### ⛔ Stop and ask user (irreversible / external / broad blast radius)
+
+- Any deployment or production release
+- Sending messages: ATA article publish, DingTalk push, email, MR/PR creation for team review
+- Modifying shared infrastructure: hooks / settings.json / CI config / global env
+- `rm -rf` on tracked files, `git push --force`, `git reset --hard` on shared branch
+- Modifying files OUTSIDE the plan.md's declared `files:` field
+- Installing packages / running `npm install` / `pip install` on user's system
+- Cross-session operations affecting other users
+- Anything the pattern reference explicitly marks "user confirmation required"
+
+### 🟡 Grey zone (surface briefly, proceed by default unless user objects)
+
+- `git push` to main when it's the user's own repo AND CI is green
+- Writing new files under user's `~/.qoder/` or `~/.claude/` config dirs
+- Creating new branches
+
+### Why
+
+- Reviewers are the gate. If the review says PASS, asking the user again is asking them to override reviewers — which they usually can't judge better than the reviewers themselves.
+- Reversible local work: `git reset --hard HEAD~1` costs 1 command. Reversing an ATA publish costs a lot more.
+- Reduce user micromanagement. The pattern users want is "swarm went from plan to reviewed commit — anything to do differently?"
+
+### How the orchestrator implements this
+
+After a review verdict:
+
+```
+if verdict in [ROBUST, OKAY, 5/5-PASS, 4/5-PASS]:
+    is_reversible = check_actions_are_reversible(next_stage_actions)
+    if is_reversible:
+        proceed_without_asking()
+        emit_progress_message("Stage X passed → proceeding to stage Y")
+    else:
+        ask_user("Review passed. Next action <Z> is irreversible: <describe>. Proceed?")
+else:  # NEEDS-FIX, REJECT, 2/5-PASS
+    report_to_user_and_wait()
+```
+
+Anti-pattern: asking "commit? push?" after every stage. Reviewers already approved — asking again defeats their purpose.
+
+Anti-pattern: auto-pushing without ANY summary to user. Even for reversible actions, emit a short progress line so the user knows what happened.
+
 ## Agent routing preference (applies even WITHOUT activating this skill)
 
 When you are about to use the `Agent` tool for any reason:
