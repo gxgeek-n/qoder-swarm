@@ -231,6 +231,23 @@ See `docs/memory-protocol.md` for the write/read format. Cost is 1 Glob per patt
 
 Borrowed from: navigator.ai (on-demand context loading) + anthropics/skills (lazy skill activation).
 
+### Auto-execution (no human trigger needed)
+
+The following wiki/memory operations happen AUTOMATICALLY as part of pattern execution. The orchestrator does NOT wait for user to say "wiki ingest" or "remember this":
+
+| When | What happens | Who does it |
+|---|---|---|
+| Pattern completes (any) | .swarm/{pattern}/*.md → wiki vault (references/ or synthesis/) | orchestrator, after final output step |
+| Stage 0 reads wiki pages | Those pages get `--reinforce` (confidence=HIGH, last_confirmed=today) | orchestrator, during Stage 0 |
+| Session start | session-start.py scans vault + prints active patterns + memory count | hook, automatic |
+| Agent output contains insight keywords | memory-learner.py writes to .swarm/memory/ | hook, automatic |
+| Agent completes with "STATUS: DONE" + .swarm/ path | swarm-wiki-ingest.py writes to vault | hook, automatic |
+| Weekly (or user runs) | wiki-confidence.py --decay | manual for now (suggest: cron) |
+
+The ONLY manual wiki operation is `wiki-lint` (health check) and `wiki-query` (user asking a question). Everything else is automatic.
+
+**Anti-pattern**: Orchestrator says "I'll wiki-ingest this later" or "you can run wiki-ingest manually" — NO. If it's ingest-worthy, ingest it NOW as part of the current step.
+
 ## ProgressLedger 协议（来自 magentic-loop）
 
 **Source**: SK Magentic One (`semantic-kernel/python/semantic_kernel/agents/orchestration/prompts/_magentic_prompts.py:63-111`)

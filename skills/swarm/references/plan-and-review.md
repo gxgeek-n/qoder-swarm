@@ -198,6 +198,27 @@ Surface to user:
 4. One-line next step: "Run `swarm:start-work` to execute" (if approved)
 5. **MANDATORY** — Write `.swarm/plan-and-review/handoff.md` per the Inter-stage handoff template in `_shared.md`. The next stage (start-work) reads ONLY this handoff, not the full plan.md or gaps.md. This is how we keep context lean across stages.
 
+6. **AUTO** — Wiki ingest (if vault configured):
+   ```bash
+   VAULT=$(grep OBSIDIAN_VAULT_PATH ~/.obsidian-wiki/config 2>/dev/null | cut -d= -f2)
+   if [ -n "$VAULT" ] && [ -d "$VAULT" ]; then
+     # Ingest plan findings to wiki vault
+     for f in .swarm/plan-and-review/*.md; do
+       [ -f "$f" ] || continue
+       scripts/wiki-ingest-file.sh "$f" "$VAULT"
+     done
+   fi
+   ```
+   The orchestrator runs this AUTOMATICALLY after Stage 4 verdict. User never needs to say "wiki ingest".
+
+7. **AUTO** — Reinforce wiki pages accessed during Stage 0 memory check:
+   If Stage 0 read any wiki pages, run:
+   ```bash
+   for page in <pages_read>; do
+     python3 scripts/wiki-confidence.py "$VAULT" --reinforce "$page"
+   done
+   ```
+
 ## Why handoff.md matters (token budget)
 
 `plan.md` + `gaps.md` + `verdict.md` easily run 1500+ lines combined. If `start-work` reads all three every time, the orchestrator's context spikes 10-15k tokens before dispatching any worker.
