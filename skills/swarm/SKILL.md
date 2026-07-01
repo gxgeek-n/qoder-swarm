@@ -135,7 +135,19 @@ swarm/
 ## Critical: when this skill activates
 
 After deciding which pattern applies:
-1. Tell the user briefly: `"Running swarm:<pattern> (using Agent parallel calls, ~Nx credit)"`.
+1. Tell the user briefly: `"Running swarm:<pattern>"`.
+   At EACH stage transition, emit a **progress line** (one sentence, not a paragraph):
+   - `"Stage 0.5 → interview (3 ambiguities detected, asking clarification)"`
+   - `"Stage 1 → parallel research (explorer + librarian dispatched)"`
+   - `"Stage 2 → planning (from 2 research reports, writing plan.md)"`
+   - `"Stage 3 → gap analysis"`
+   - `"Stage 3.5 → hyperplan hostile critic"`
+   - `"Stage 4 → reviewer verdict: OKAY"`
+   - `"Wave 1 → dispatching T1, T4, T6 (3 parallel workers)"`
+   - `"Wave 1 done → 3/3 PASS. Wave 2 → T2, T3 (2 workers)"`
+   - `"5-agent review → 5/5 PASS"`
+   - `"Auto-committing + pushing (per auto-execution boundary)"`
+   This is the lightweight HUD. No status bar widget, no fancy rendering — just one-line echoes that tell the user where we are without them needing to read .swarm/ files.
 2. Read the reference file.
 3. Execute. Don't paraphrase the reference — follow it.
 

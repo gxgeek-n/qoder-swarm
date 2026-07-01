@@ -352,3 +352,51 @@ This mirrors OmO's `DEFAULT_CIRCUIT_BREAKER_CONSECUTIVE_THRESHOLD` = 5.
 **Integration with ulw-loop**: after each iteration, run `tool-loop-detect.sh`. If exit 1,
 force switch to a different swarm-* agent for the next iteration OR terminate with partial
 result.
+
+## Structured commit trailers (from oh-my-qoder)
+
+Source: chickenlj/oh-my-qoder commit protocol.
+
+When the orchestrator commits after a successful swarm iteration, use these git trailers (appended after the commit body, blank-line-separated):
+
+```
+Confidence: HIGH | MEDIUM | LOW
+  - HIGH: all acceptance criteria met + smoke passes + review PASS
+  - MEDIUM: acceptance met but no adversarial review OR partial test coverage
+  - LOW: changes are speculative / aspirational / not yet validated
+
+Scope-risk: CONTAINED | MODERATE | BROAD
+  - CONTAINED: only files declared in plan.md's `files:` field were touched
+  - MODERATE: 1-2 undeclared files touched (e.g., docs update not in plan)
+  - BROAD: touched shared infrastructure (hooks/settings/CI) or >10 files
+
+Not-tested: <comma-separated list of scenarios not verified>
+  - e.g., "macOS bash 3.2 compat, concurrent 10+ tasks, non-git-repo cwd"
+  - If everything was tested: "none"
+
+Constraint: <comma-separated invariants respected>
+  - e.g., "I1 single-skill router, I3 file-as-truth, I5 reversible cleanup"
+
+Rejected: <alternatives considered and why rejected>
+  - e.g., "full Rate Governor (no empirical data), jq-native DFS (BFS simpler)"
+```
+
+### Example commit with trailers:
+
+```
+swarm v6 rate-governor lite — observability-first counter-proposal
+
+[body text here]
+
+Confidence: HIGH
+Scope-risk: CONTAINED
+Not-tested: windows, non-jq systems
+Constraint: I1, I2, I3, I4, I5
+Rejected: D.1 jitter (no 429 evidence), D.4 donation pool (single-user)
+```
+
+### When to apply
+
+- ALWAYS on swarm auto-commits (commits made by the orchestrator per auto-execution boundary).
+- OPTIONAL on user-directed commits (when user says "commit this").
+- The orchestrator self-evaluates: was this reviewed? what wasn't tested? what was the scope?
