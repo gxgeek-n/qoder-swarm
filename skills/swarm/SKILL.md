@@ -32,6 +32,7 @@ If you (a future LLM) catch yourself wanting to paste a "Stage 1 — ..." block 
 | `teammode` | "team mode" / "make a team" / "团队模式" / "多人协作" |
 | `ulw-loop` | "ulw-loop" / "keep going" / "一直跑到完成" |
 | `magentic-loop` | "magentic" / "group conversation" / "群对话" / "speaker selection" / "iterative debate" / "对辩收敛" / multi-agent + complex decision / "讨论收敛" |
+| `self-improve` | "self-improve" / "evolutionary" / "tournament" / "自进化" / "持续优化" / "benchmark loop" / "optimize metric" / "迭代优化" |
 
 ### Decision diagram — pick one pattern
 
@@ -119,6 +120,7 @@ swarm/
     ├── teammode.md                   ← persistent multi-session team
     ├── ulw-loop.md                   ← self-loop with evidence ledger
     ├── magentic-loop.md              ← group conversation with speaker selection
+    ├── self-improve.md               ← evolutionary tournament optimization
     └── _shared.md                    ← TASK template, error handling, retry rules
 ```
 

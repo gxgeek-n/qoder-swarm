@@ -32,6 +32,16 @@ SWARM_HOOKS = {
         "script": "swarm-stop-continuation.sh",
         "timeout": 10,
     },
+    "UserPromptSubmit": {
+        "matcher": "*",
+        "script": "keyword-detector.sh",
+        "timeout": 5,
+    },
+    "SessionStart": {
+        "matcher": "*",
+        "script": "session-start.sh",
+        "timeout": 5,
+    },
 }
 
 
