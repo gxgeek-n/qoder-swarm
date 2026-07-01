@@ -93,7 +93,8 @@ echo "  ✓ Workflows installed ($WF_COUNT files)"
 # 2. Hooks
 mkdir -p "$QODER_HOME/hooks"
 HOOK_COUNT=0
-for f in "$SCRIPT_DIR/hooks/swarm-"*.sh; do
+for f in "$SCRIPT_DIR/hooks/"*.sh "$SCRIPT_DIR/hooks/"*.py; do
+  [ -f "$f" ] || continue
   cp "$f" "$QODER_HOME/hooks/"
   chmod +x "$QODER_HOME/hooks/$(basename "$f")"
   HOOK_COUNT=$((HOOK_COUNT+1))
