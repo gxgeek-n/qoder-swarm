@@ -109,6 +109,20 @@ Default limit: 5 concurrent workers per model (mirrors OmO's `DEFAULT_CONCURRENC
 
 Why: prevents cascade failure when a model provider rate-limits or degrades. Without this, a 10-worker wave all hitting Ultimate → 5 succeed, 5 fail with 429 → whole wave retried → doubles cost.
 
+## Dispatch stagger (recommended for waves ≥3 workers)
+
+When emitting a wave of Agent tool calls, add micro-stagger between them to spread the API burst:
+
+```bash
+scripts/swarm-stagger.sh   # 200-400ms random sleep
+```
+
+Not required for waves of 1-2. For waves of 3+, running stagger between each Agent tool call reduces the chance of simultaneous API bursts triggering per-second rate limits.
+
+Zero-cost when unnecessary (disable via `SWARM_STAGGER_OFF=1`). Default range 200-400ms adds ≤2s total for 5 workers — negligible compared to 5-30s worker execution time.
+
+Ported concept: Rate Governor time-band jitter (`.swarm/research-2026-07/findings.md`), simplified from priority-band jitter (D.1 P0 in that doc) to plain uniform micro-delay after sanity review concluded priority banding is over-engineering for our single-user burst-and-idle pattern.
+
 ## Step 3 — Adversarial verification (HEAVY × 1)
 
 ```

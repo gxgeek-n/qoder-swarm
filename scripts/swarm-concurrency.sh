@@ -5,7 +5,11 @@
 # Commands:
 #   status                                 Show all model slot state
 #   acquire <model> <task-id>              Try to acquire a slot; exit 0 if got, exit 1 if full
-#   release <model> <task-id>              Release a slot (must have acquired first)
+#   release <model> <task-id> [opts]       Release a slot (must have acquired first)
+#     --status <STATUS>                    completed|error|timeout|cancelled|empty-done
+#     --error <ERROR_CLASS>                429|5xx|timeout|refusal|empty-done|unknown
+#     --duration-ms <N>                    numeric ms (default 0)
+#     --agent <NAME>                       subagent type (default unknown)
 #   config <model> <limit>                 Set concurrency limit for a model (persisted)
 #   reset                                  Clear all slots (dangerous)
 #
@@ -18,6 +22,8 @@ SWARM_HOME="${SWARM_HOME:-$PWD}"
 STATE_DIR="${SWARM_HOME}/.swarm/concurrency"
 STATE_FILE="${STATE_DIR}/slots.json"
 LOCK_DIR="${STATE_DIR}/.lockdir"
+AUDIT_DIR="${SWARM_HOME}/.swarm/audit"
+AUDIT_FILE="${AUDIT_DIR}/attempts.jsonl"
 DEFAULT_LIMIT="${SWARM_CONCURRENCY_DEFAULT:-5}"
 
 ensure_state() {
@@ -101,6 +107,11 @@ cmd_acquire() {
 _do_release() {
   local model="$1"
   local task_id="$2"
+  local status="${3:-completed}"
+  local error_class="${4:-}"
+  local duration_ms="${5:-0}"
+  local agent="${6:-unknown}"
+
   _ensure_model_entry "$model"
   local tmp; tmp=$(mktemp)
   jq --arg m "$model" --arg t "$task_id" '
@@ -111,12 +122,72 @@ _do_release() {
   count=$(jq -r --arg m "$model" '.[$m].count' "$STATE_FILE")
   limit=$(jq -r --arg m "$model" '.[$m].limit' "$STATE_FILE")
   echo "released: $model now $count/$limit (task=$task_id)"
+
+  # Append audit record to attempts.jsonl
+  _append_audit "$model" "$task_id" "$status" "$error_class" "$duration_ms" "$agent"
+}
+
+_append_audit() {
+  local model="$1"
+  local task_id="$2"
+  local status="$3"
+  local error_class="$4"
+  local duration_ms="$5"
+  local agent="$6"
+
+  # Validate duration_ms is numeric, default to 0 if not
+  if ! [[ "$duration_ms" =~ ^[0-9]+$ ]]; then
+    duration_ms=0
+  fi
+
+  mkdir -p "$AUDIT_DIR"
+  local ts; ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+  if [ -n "$error_class" ]; then
+    jq -nc \
+      --arg ts "$ts" \
+      --arg tid "$task_id" \
+      --arg ag "$agent" \
+      --arg mo "$model" \
+      --arg st "$status" \
+      --argjson dm "$duration_ms" \
+      --arg ec "$error_class" \
+      '{ts:$ts,task_id:$tid,agent:$ag,model:$mo,status:$st,duration_ms:$dm,error_class:$ec}' \
+      >> "$AUDIT_FILE"
+  else
+    jq -nc \
+      --arg ts "$ts" \
+      --arg tid "$task_id" \
+      --arg ag "$agent" \
+      --arg mo "$model" \
+      --arg st "$status" \
+      --argjson dm "$duration_ms" \
+      '{ts:$ts,task_id:$tid,agent:$ag,model:$mo,status:$st,duration_ms:$dm}' \
+      >> "$AUDIT_FILE"
+  fi
 }
 
 cmd_release() {
-  local model="${1:?usage: release <model> <task-id>}"
+  local model="${1:?usage: release <model> <task-id> [--status <STATUS>] [--error <ERROR_CLASS>] [--duration-ms <N>] [--agent <NAME>]}"
   local task_id="${2:?usage: release <model> <task-id>}"
-  with_lock _do_release "$model" "$task_id"
+  shift 2 || true
+
+  local status="completed"
+  local error_class=""
+  local duration_ms="0"
+  local agent="unknown"
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --status)      status="$2"; shift 2 ;;
+      --error)       error_class="$2"; shift 2 ;;
+      --duration-ms) duration_ms="$2"; shift 2 ;;
+      --agent)       agent="$2"; shift 2 ;;
+      *)             echo "unknown flag: $1" >&2; shift ;;
+    esac
+  done
+
+  with_lock _do_release "$model" "$task_id" "$status" "$error_class" "$duration_ms" "$agent"
 }
 
 cmd_config() {
