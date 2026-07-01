@@ -10,12 +10,12 @@ Turn a single Qoder session into a multi-agent control room with model-tiered co
 
 | Feature | Origin | Description |
 |---------|--------|-------------|
-| **`swarm` Skill** (primary) | Original | One auto-triggered skill routes natural-language requests to 10 orchestration patterns |
-| 7 custom subagents | LazyCodex/OmO | `swarm-explorer/librarian/planner/reviewer/worker/context-manager/error-coordinator` with per-role model tiers |
+| **`swarm` Skill** (primary) | Original | One auto-triggered skill routes natural-language requests to 16 orchestration patterns |
+| 9 custom subagents | LazyCodex/OmO | `swarm-explorer/librarian/planner/reviewer/worker/worker-glm/worker-qwen/context-manager/error-coordinator` with per-role model tiers |
+| 10 hooks | Original + LazyCodex | Pre/post-tool, session-start, stop, and prompt-submit hooks for quality, memory, and audit |
 | Dispatch protocol | ThreadDeck | Multi-terminal collaboration via file system |
-| Comment-checker hook | LazyCodex | Post-edit AI-slop reminder |
-| Stop-continuation hook | LazyCodex | Pending-work alert on session end |
-| Model tiering | Original | Free Qwen for search, GLM for code — save 60%+ credits |
+| Model tiering | Original | Free Qwen for search, GLM for code, Ultimate for planning — save 60%+ credits |
+| Wiki integration | obsidian-wiki | Auto-ingest swarm outputs into an Obsidian vault (Karpathy LLM Wiki architecture) |
 | 10 Workflow scripts (optional) | LazyCodex/OmO | Reference `.mjs` runtime implementations; require Qoder Workflow tool feature flag |
 
 ## Install
@@ -47,6 +47,12 @@ The `swarm` Skill auto-activates from natural-language triggers (works on all Qo
 | `visual-qa-strict` | "visual QA" / "视觉验证" | 4 | ~2.40x |
 | `teammode` | "team mode" / "团队模式" | 4+ | varies |
 | `ulw-loop` | "keep going" / "一直跑到完成" | 1-20 | varies |
+| `autopilot` | "full auto" / "全自动" / "hands off" | 4+ | varies |
+| `ralph` | "persistence loop" / "不停直到完成" | 1-20 | varies |
+| `magentic-loop` | "group conversation" / "对辩收敛" | 3-8 | varies |
+| `self-improve` | "evolutionary" / "自进化" / "tournament" | 3+ | varies |
+| `cancel` | "cancel" / "stop swarm" / "取消" | 0 | free |
+| `skillify` | "make this a skill" / "提取技能" | 2 | ~1.20x |
 
 **Advanced**: power users with the Qoder Workflow tool feature flag enabled can also invoke patterns directly:
 ```
@@ -73,6 +79,39 @@ Change these to any model from `/model`:
 - `DeepSeek-V4-Pro` (0.50x) — strong reasoning
 - `Qwen3.7-Max` (0.50x/0.25x) — top tier, half price regular hours
 - `GLM-5.2` (0.60x) — engineering-grade
+- `Ultimate` (1.00x) — top reasoning, used for planner + reviewer
+
+## Hooks System
+
+The installer registers 10 hooks across 5 Qoder lifecycle events. All scripts are copied to `~/.qoder/hooks/` and auto-registered in `settings.json` via `install-settings.py`.
+
+| Hook | Event | Matcher | What it does |
+|------|-------|---------|-------------|
+| `swarm-comment-checker.sh` | PostToolUse | `Edit\|Write\|NotebookEdit` | Post-edit AI-slop reminder |
+| `swarm-stop-continuation.sh` | Stop | `*` | Pending-work alert on session end |
+| `pre-tool-enforcer.py` | PreToolUse | `Agent` | Prompt-size budget, subagent_type validity, cancel signals |
+| `post-tool-verifier.py` | PostToolUse | `Agent` | Catch empty-done (<50 chars) and oversized output (>50KB) |
+| `session-start.py` | SessionStart | `*` | Restore active swarm pattern context from `.swarm/` state |
+| `keyword-detector.py` | UserPromptSubmit | `*` | Detect swarm trigger keywords, inject routing hints |
+| `memory-learner.py` | PostToolUse | `Agent` | Auto-extract learnings into `.swarm/memory/` |
+| `subagent-tracker.py` | Pre+PostToolUse | `Agent` | Track active sub-agents in `.swarm/audit/active-agents.json` |
+| `swarm-wiki-ingest.py` | PostToolUse | `Agent` | Auto-ingest completed swarm outputs into Obsidian wiki vault |
+| `agent-dispatch-log.sh` | PostToolUse | `Agent` | Log Agent dispatches to `.swarm/audit/dispatches.jsonl` for cost analysis |
+
+Hooks are idempotent: re-running `bash install.sh` never duplicates entries. Uninstall removes only swarm hooks, preserving user hooks.
+
+## Wiki Integration
+
+qoder-swarm integrates with [obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) (MIT) for persistent knowledge management — no need to build a wiki system from scratch.
+
+**Architecture** (Karpathy LLM Wiki three-layer model):
+1. **Raw sources** — qoder-swarm code, `.swarm/` state files, agent outputs
+2. **Wiki layer** — LLM-maintained structured Markdown in `~/Documents/qoder-swarm-wiki/`
+3. **Schema layer** — conventions encoded in `AGENTS.md`
+
+**Triggers**: `"wiki ingest"` / `"wiki query"` / `"wiki lint"` / `"记住这个"` / `"wiki this"`
+
+The `swarm-wiki-ingest.py` hook auto-distills completed swarm outputs (reports, plans, reviews) into wiki pages with frontmatter. Open the vault in Obsidian to see the knowledge graph via `[[wiki-links]]`.
 
 ## Multi-Terminal Dispatch
 
@@ -92,36 +131,39 @@ Then open multiple terminals, each Qoder session reads its role's inbox.
 
 ```
 qoder-swarm/
-├── skills/swarm/        # The 'swarm' Skill — primary entry point
-│   ├── SKILL.md         #   router with trigger words → reference dispatch
-│   └── references/      #   10 orchestration pattern playbooks
-├── agents/              # 7 custom subagents with per-role models
-│   ├── swarm-explorer.md         # Qwen3.7-Max-DogFooding, low effort — read-only codebase search
-│   ├── swarm-librarian.md        # Qwen3.7-Max-DogFooding, low effort — external docs/OSS
-│   ├── swarm-planner.md          # ultimate, high effort — strategic planning
-│   ├── swarm-reviewer.md         # ultimate, high effort — adversarial review
-│   ├── swarm-worker.md           # GLM-5.2, default isolation — implementation
-│   ├── swarm-context-manager.md # DeepSeek-V4-Flash, low effort — context window management
-│   └── swarm-error-coordinator.md # DeepSeek-V4-Flash, medium effort — error recovery
-├── workflows/           # 10 Workflow .mjs (optional, feature-gated)
-│   ├── plan-and-review.mjs
-│   ├── five-agent-review.mjs
-│   ├── start-work.mjs
-│   ├── remove-ai-slops.mjs
-│   ├── init-deep.mjs
-│   ├── ultraresearch.mjs
-│   ├── debugging.mjs
-│   ├── teammode.mjs
-│   ├── ulw-loop.mjs
-│   └── visual-qa-strict.mjs
-├── hooks/               # Post-tool and stop hooks
-│   ├── swarm-comment-checker.sh
-│   └── swarm-stop-continuation.sh
-├── dispatch-kit/        # Multi-session protocol
+├── skills/swarm/            # The 'swarm' Skill — primary entry point
+│   ├── SKILL.md             #   router with trigger words → reference dispatch
+│   ├── references/          #   20 files (16 routable patterns + 4 utility)
+│   └── prompts/             #   7 prompt templates (context-recovery, replan, etc.)
+├── agents/                  # 9 custom subagents with per-role models
+│   ├── swarm-explorer.md            # Qwen3.7-Max-DogFooding — read-only codebase search
+│   ├── swarm-librarian.md           # Qwen3.7-Max-DogFooding — external docs/OSS
+│   ├── swarm-planner.md             # Ultimate — strategic planning
+│   ├── swarm-reviewer.md            # Ultimate — adversarial review
+│   ├── swarm-worker.md              # GLM-5.2 — implementation (default)
+│   ├── swarm-worker-glm.md           # GLM-5.2 — GLM-pinned worker variant
+│   ├── swarm-worker-qwen.md          # Qwen3.7-Max-DogFooding — free-tier worker variant
+│   ├── swarm-context-manager.md     # DeepSeek-V4-Flash — context window management
+│   └── swarm-error-coordinator.md   # DeepSeek-V4-Flash — error recovery
+├── workflows/               # 10 Workflow .mjs (optional, feature-gated)
+├── hooks/                   # 10 hook scripts (2 .sh + 8 .py/.sh)
+├── scripts/                 # 17 utility scripts (DAG, cost, state, wiki, etc.)
+├── dispatch-kit/            # Multi-session protocol
 │   ├── registry.yml
 │   ├── init-dispatch.sh
-│   └── templates/
-├── install.sh           # One-command installer
+│   ├── tmux-launch.sh
+│   ├── schema/message.json
+│   └── templates/            # 3 handoff templates
+├── tests/smoke-test.sh      # Automated assertion suite
+├── docs/                    # Articles, memory protocol, research notes
+│   ├── articles/
+│   ├── memory-protocol.md
+│   └── research-2026.md
+├── .swarm/                  # Runtime state (DAG, memory, audit logs)
+├── ARCHITECTURE.md          # 5 design invariants (I1-I5)
+├── Makefile                 # make help/install/test/doctor/status/lint/clean
+├── install.sh               # One-command installer
+├── install-settings.py      # Hook registration + uninstall
 └── package.json
 ```
 
@@ -137,20 +179,29 @@ qoder-swarm/
 
 ## Customizing swarm-* Subagents
 
-After installation, the 7 subagents live at `~/.qoder/agents/swarm-*.md`. Each is a Markdown file with YAML frontmatter. You can edit them to fit your environment without touching this repo.
+After installation, the 9 subagents live at `~/.qoder/agents/swarm-*.md`. Each is a Markdown file with YAML frontmatter. You can edit them to fit your environment without touching this repo.
 
 ### Switch underlying models
 
-Each subagent's `model:` field controls which LLM it uses. Default values are specific model names (Qwen3.7-Max-DogFooding, ultimate, GLM-5.2, DeepSeek-V4-Flash) — see the subagent_type table in `skills/swarm/references/_shared.md`. To force specific models:
+Each subagent's `model:` field controls which LLM it uses. Defaults use specific model names — see the table in `skills/swarm/references/_shared.md`:
+
+| Agent | Default model | Cost tier |
+|-------|--------------|-----------|
+| swarm-explorer | Qwen3.7-Max-DogFooding | 0.00x (free) |
+| swarm-librarian | Qwen3.7-Max-DogFooding | 0.00x (free) |
+| swarm-planner | Ultimate | 1.00x |
+| swarm-reviewer | Ultimate | 1.00x |
+| swarm-worker | GLM-5.2 | 0.60x |
+| swarm-worker-glm | GLM-5.2 | 0.60x |
+| swarm-worker-qwen | Qwen3.7-Max-DogFooding | 0.00x (free) |
+| swarm-context-manager | DeepSeek-V4-Flash | 0.10x |
+| swarm-error-coordinator | DeepSeek-V4-Flash | 0.10x |
+
+To force a specific model:
 
 ```yaml
 # ~/.qoder/agents/swarm-explorer.md
 model: Qwen3.7-Max-DogFooding   # free dogfooding model
-```
-
-```yaml
-# ~/.qoder/agents/swarm-planner.md
-model: GLM-5.2                  # specific provider model
 ```
 
 Run `/model` inside Qoder to see what's available in your account.
@@ -160,7 +211,6 @@ Run `/model` inside Qoder to see what's available in your account.
 If you have MCP servers configured at the session level (`settings.json` `mcpServers`), give a specific subagent access by adding to its frontmatter:
 
 ```yaml
-# Reference an already-configured MCP server by name
 mcpServers:
   - code        # internal Alibaba code MCP
   - yuque       # internal docs MCP
@@ -171,16 +221,14 @@ Or define an MCP server inline for one subagent only — see the [Qoder subagent
 
 ### Preload more skills
 
-`skills:` preloads specialized skills into the subagent's context (vs. having it discovered via description matching). Defaults already include `ast-grep`, `code-reading-skill`, `security-review`, `simplify`. Add more:
+`skills:` preloads specialized skills into the subagent's context. Defaults already include `ast-grep`, `code-reading-skill`, `security-review`, `simplify`. Add more:
 
 ```yaml
-# Worker that handles AE-Trade domain code
 skills:
   - simplify
   - ast-grep
   - code-reading-skill
   - tech-prd-v2                 # internal: AE trade PRD
-  - ae-trade-carts-convention   # internal: AE carts convention
 ```
 
 ### Change permissions / runtime limits
@@ -189,12 +237,12 @@ skills:
 permissionMode: acceptEdits     # auto-approve edits (less prompting)
 maxTurns: 20                    # more conversation turns
 timeoutMins: 30                 # longer runtime cap
-isolation: worktree             # run in separate git worktree (shipped default is `isolation: default`; set worktree explicitly if cwd is a git repo)
+isolation: worktree             # run in separate git worktree
 ```
 
 ### Override without editing files
 
-If you want to keep `~/.qoder/agents/swarm-*.md` clean (for easy upgrades), use `settings.json` overrides:
+Use `settings.json` overrides to keep `~/.qoder/agents/swarm-*.md` clean for easy upgrades:
 
 ```json
 {
@@ -221,17 +269,17 @@ bash tests/smoke-test.sh --keep    # leave the tmpdir for inspection
 bash tests/smoke-test.sh --verbose # print every command
 ```
 
-What it covers (organized in 8 sections):
+The suite runs automated assertions across 8 sections:
 
 | Section | Checks |
 |---------|--------|
 | Installer auxiliary commands | `--help` / `--version` / `--doctor`, rejects unknown options |
 | Fresh install | exit 0, all expected dirs/files created |
-| File layout | 10 workflows, 2 hooks (executable), image-diff.py, SKILL.md, 11 references, marker file, 7 swarm-* agents, dispatch templates, settings.json |
+| File layout | workflows, hooks, scripts, SKILL.md, references, agents, dispatch templates, settings.json |
 | settings.json sanity | valid JSON, hook paths resolve under `QODER_HOME` (not hardcoded `~/.qoder/`) |
 | Agent frontmatter | YAML parses for every swarm-* agent, required fields present |
 | image-diff.py | output is valid JSON, similarity / diffPixels / hotspots match a known fixture |
-| Idempotency | re-run produces no duplicate hooks, prints "Nothing to do", **preserves unrelated user hooks** and arbitrary `customField` |
+| Idempotency | re-run produces no duplicate hooks, prints "Nothing to do", preserves unrelated user hooks |
 | Uninstall round-trip | swarm hooks removed, user's other hooks intact |
 
 Exit code = number of failed checks. Use it in CI:
@@ -252,7 +300,7 @@ Read these before running `bash install.sh` from a repo you didn't write.
 
 **What the installer does to your system:**
 - Writes files into `$QODER_HOME` (default `~/.qoder/`) — workflows, hooks, scripts, skills, agents
-- Modifies `$QODER_HOME/settings.json` to register two hooks (backup saved as `settings.json.swarm-backup-<timestamp>`)
+- Modifies `$QODER_HOME/settings.json` to register hooks (backup saved as `settings.json.swarm-backup-<timestamp>`)
 - Does NOT use sudo, does NOT call out to the network, does NOT modify anything outside `$QODER_HOME`
 
 **Auditable in advance:** `bash install.sh --doctor` checks prerequisites without writing anything. `python3 install-settings.py --dry-run` shows the proposed settings.json change.
@@ -263,7 +311,7 @@ Read these before running `bash install.sh` from a repo you didn't write.
 - `swarm-planner` has `Edit`/`Write` but is **prompt-enforced** to only touch `.swarm/plans/*.md`. The boundary is NOT filesystem-enforced — a maliciously crafted prompt could direct it elsewhere. Treat planner output the same way you treat any other LLM-generated code: review before relying on it.
 
 **Hostile-repo defense:**
-The `swarm-stop-continuation.sh` hook reads `.swarm/ulw-loop/state.json` and `.swarm/teams/*/team.json` from the current project and echoes a snippet to the next session. State files are **untrusted input** when they ship via a repo you didn't author. The hook sanitizes the content (control chars stripped, length capped at 80 chars, JSON parsed via `python3 -c` not regex) but the threat model is "best-effort" — if you clone a repo from a source you don't trust, delete `.swarm/` before opening a Qoder session in that directory.
+The `swarm-stop-continuation.sh` hook reads `.swarm/` state files from the current project. State files are **untrusted input** when they ship via a repo you didn't author. The hook sanitizes content (control chars stripped, length capped, JSON parsed via `python3`) but the threat model is "best-effort" — if you clone a repo from a source you don't trust, delete `.swarm/` before opening a Qoder session.
 
 **Uninstall:**
 ```bash
@@ -277,6 +325,10 @@ rm -rf ~/.qoder/skills/swarm ~/.qoder/agents/swarm-*.md   # removes the kit's fi
 |--------|----------------|---------|
 | [LazyCodex](https://github.com/code-yeongyu/lazycodex) | Agent roles, planning flow, review pattern, ulw-loop, remove-ai-slops, init-deep, debugging, teammode | MIT |
 | [ThreadDeck](https://github.com/readysteadyscience/codex-threaddeck) | Dispatch protocol, registry, task/evidence handoff templates, safety model | MIT |
+| [oh-my-qoder](https://github.com/chickenlj/oh-my-qoder) | Self-improve pattern, structured commit trailers | Apache-2.0 |
+| [obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) | Wiki integration, 35 wiki skills, Karpathy LLM Wiki architecture | MIT |
+| [Semantic Kernel](https://github.com/microsoft/semantic-kernel) | Magentic group conversation pattern (magentic-loop) | MIT |
+| [ClawTeam](https://github.com/HKUDS/ClawTeam) | DAG self-coordination design, file-overlap detection | MIT |
 
 ## License
 
