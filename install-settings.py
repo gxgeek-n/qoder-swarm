@@ -15,34 +15,71 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Marker that identifies hooks added by this installer
-SWARM_MARKER = "swarm-"
-
 # Hooks we want to install. The 'script' field is the basename in <qoder_home>/hooks/;
 # the actual command path is built at install time from --qoder-home so non-default
 # install locations work correctly.
+# Each event maps to a LIST of hook configs so multiple hooks can share one event.
 SWARM_HOOKS = {
-    "PostToolUse": {
-        "matcher": "Edit|Write|NotebookEdit",
-        "script": "swarm-comment-checker.sh",
-        "timeout": 5,
-    },
-    "Stop": {
-        "matcher": "*",
-        "script": "swarm-stop-continuation.sh",
-        "timeout": 10,
-    },
-    "UserPromptSubmit": {
-        "matcher": "*",
-        "script": "keyword-detector.sh",
-        "timeout": 5,
-    },
-    "SessionStart": {
-        "matcher": "*",
-        "script": "session-start.sh",
-        "timeout": 5,
-    },
+    "PreToolUse": [
+        {
+            "matcher": "Agent",
+            "script": "subagent-tracker.py",
+            "timeout": 5,
+        },
+    ],
+    "PostToolUse": [
+        {
+            "matcher": "Edit|Write|NotebookEdit",
+            "script": "swarm-comment-checker.sh",
+            "timeout": 5,
+        },
+        {
+            "matcher": "Agent",
+            "script": "post-tool-verifier.py",
+            "timeout": 5,
+        },
+        {
+            "matcher": "Agent",
+            "script": "memory-learner.py",
+            "timeout": 5,
+        },
+        {
+            "matcher": "Agent",
+            "script": "subagent-tracker.py",
+            "timeout": 5,
+        },
+    ],
+    "Stop": [
+        {
+            "matcher": "*",
+            "script": "swarm-stop-continuation.sh",
+            "timeout": 10,
+        },
+    ],
+    "UserPromptSubmit": [
+        {
+            "matcher": "*",
+            "script": "keyword-detector.py",
+            "timeout": 5,
+        },
+    ],
+    "SessionStart": [
+        {
+            "matcher": "*",
+            "script": "session-start.py",
+            "timeout": 5,
+        },
+    ],
 }
+
+
+def _all_scripts():
+    """Return set of all swarm hook script basenames."""
+    names = set()
+    for cfgs in SWARM_HOOKS.values():
+        for c in cfgs:
+            names.add(c["script"])
+    return names
 
 
 def hook_command_path(qoder_home, script_name):
@@ -75,9 +112,8 @@ def backup_settings(path):
     return backup
 
 
-def hook_entry_for(event_name, command):
+def hook_entry_for(cfg, command):
     """Build a single hook block in the schema Qoder expects."""
-    cfg = SWARM_HOOKS[event_name]
     return {
         "matcher": cfg["matcher"],
         "hooks": [
@@ -90,30 +126,28 @@ def hook_entry_for(event_name, command):
     }
 
 
-def already_installed(hooks_section, event_name):
-    """Check if any swarm hook is already in this event."""
-    entries = hooks_section.get(event_name, [])
-    for entry in entries:
+def script_installed(hooks_section, event_name, script_name):
+    """Check if a specific swarm hook script is already installed in this event."""
+    for entry in hooks_section.get(event_name, []):
         for h in entry.get("hooks", []):
-            cmd = h.get("command", "")
-            if SWARM_MARKER in cmd:
+            if script_name in h.get("command", ""):
                 return True
     return False
 
 
 def install(settings, event_name, qoder_home):
-    """Append swarm hook block to the event. Returns True if changed."""
-    cfg = SWARM_HOOKS[event_name]
+    """Append swarm hook block(s) to the event. Returns True if changed."""
     settings.setdefault("hooks", {})
     section = settings["hooks"]
-
-    if already_installed(section, event_name):
-        return False
-
-    command = hook_command_path(qoder_home, cfg["script"])
     section.setdefault(event_name, [])
-    section[event_name].append(hook_entry_for(event_name, command))
-    return True
+    changed = False
+    for cfg in SWARM_HOOKS[event_name]:
+        if script_installed(section, event_name, cfg["script"]):
+            continue
+        command = hook_command_path(qoder_home, cfg["script"])
+        section[event_name].append(hook_entry_for(cfg, command))
+        changed = True
+    return changed
 
 
 def uninstall(settings, event_name):
@@ -122,10 +156,12 @@ def uninstall(settings, event_name):
     if event_name not in section:
         return False
 
+    scripts = _all_scripts()
     changed = False
     new_entries = []
     for entry in section[event_name]:
-        kept_hooks = [h for h in entry.get("hooks", []) if SWARM_MARKER not in h.get("command", "")]
+        kept_hooks = [h for h in entry.get("hooks", [])
+                      if not any(s in h.get("command", "") for s in scripts)]
         if len(kept_hooks) != len(entry.get("hooks", [])):
             changed = True
         if kept_hooks:
