@@ -4,6 +4,7 @@ description: "Codebase exploration and surveying specialist. Finds files, patter
 tools: ["*"]
 disallowedTools: [Edit, NotebookEdit, Agent]
 model: Qwen3.7-Max-DogFooding
+fallback_models: [GLM-5.2]
 effort: max
 temperature: 0
 skills: [ast-grep, code-reading-skill]

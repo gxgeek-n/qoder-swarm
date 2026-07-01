@@ -239,3 +239,83 @@ See `references/magentic-loop.md` § "Round-robin fallback" for the canonical al
 - ledger.jsonl record format: `{"round": <int>, "timestamp": <ISO-8601>, "ledger": <full ProgressLedger JSON>}`
 - partial result on limits hit: last assistant message; if none, return `{"status": "INCOMPLETE", "reason": "<limit-name> exhausted", "rounds_used": N}`
 - Never make multiple speaker selections per round — one ProgressLedger → one dispatch
+
+## Fallback chain (from OmO fallback-retry-handler)
+
+Source: `packages/omo-opencode/src/features/background-agent/fallback-retry-handler.ts` + `attempt-lifecycle.ts` (MIT).
+
+Every swarm-* agent has a `fallback_models:` field in its frontmatter — an ordered list of alternate models to try when the primary fails.
+
+### When to trigger fallback
+
+The orchestrator should catch Agent dispatch failures and inspect the error:
+
+| Signal | Action |
+|---|---|
+| Provider 429 (rate limit) | Wait backoff (5s, 10s, 20s) then retry same model; after 2 backoff fails, switch to fallback |
+| Provider 5xx | Immediate fallback |
+| Empty Done (agent returned but no output file) | Retry same model 1x, then fallback |
+| Timeout > 2× expected | Fallback |
+| Explicit content-policy refusal | Fallback (different model may not refuse) |
+
+### Attempt tracking
+
+Log each attempt to `.swarm/audit/attempts.jsonl`:
+```json
+{"task_id":"T5","attempt":1,"model":"Ultimate","status":"error","error":"429","started":"...","completed":"..."}
+{"task_id":"T5","attempt":2,"model":"GLM-5.2","status":"completed","started":"..."}
+```
+
+Report to user shows the whole chain:
+```
+T5: COMPLETED (via fallback to GLM-5.2, primary Ultimate 429'd)
+```
+
+### Orchestrator pseudocode
+
+```
+def dispatch_with_fallback(agent_type, prompt):
+    agent_config = read_frontmatter(agent_type)
+    chain = [agent_config.model] + agent_config.fallback_models
+    for attempt_num, model in enumerate(chain, 1):
+        try:
+            result = Agent(subagent_type=agent_type, prompt=prompt, model_override=model)
+            log_attempt(task_id, attempt_num, model, "completed")
+            return result
+        except (RateLimitError, ProviderError, EmptyDone) as e:
+            log_attempt(task_id, attempt_num, model, "error", str(e))
+            if attempt_num == len(chain):
+                raise  # exhausted all fallbacks
+            # else: try next
+    raise Exception("all fallback models exhausted")
+```
+
+**Note**: Qoder's Agent tool doesn't accept a runtime `model` parameter (per ARCHITECTURE.md I2). The `model_override` above is aspirational. Real implementation options:
+1. Maintain per-model shadow agents (e.g., `agents/swarm-worker-glm.md`, `agents/swarm-worker-qwen.md`) and dispatch by different `subagent_type`
+2. Use `general-purpose` as the ultimate fallback (inherits session default model)
+3. Wait for Qoder to expose runtime model override
+
+Currently the `fallback_models` field is a **contract/spec**, orchestrator implements it via option 1 or 2.
+
+## Loop detection (from OmO background-agent)
+
+Source: `packages/omo-opencode/src/features/background-agent/loop-detector.ts` (MIT).
+
+When the orchestrator dispatches workers in a loop (e.g., ulw-loop pattern), same-agent-same-task
+repeated calls indicate the LLM is stuck. Check periodically:
+
+```bash
+scripts/tool-loop-detect.sh --threshold 5
+```
+
+Exit codes:
+- `0` — no loop detected
+- `1` — loop detected (orchestrator should kill + retry with different strategy)
+- `2` — usage error
+
+Threshold default is 5 consecutive same-signature dispatches (agent × description).
+This mirrors OmO's `DEFAULT_CIRCUIT_BREAKER_CONSECUTIVE_THRESHOLD` = 5.
+
+**Integration with ulw-loop**: after each iteration, run `tool-loop-detect.sh`. If exit 1,
+force switch to a different swarm-* agent for the next iteration OR terminate with partial
+result.

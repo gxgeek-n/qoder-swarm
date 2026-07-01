@@ -4,6 +4,7 @@ description: Strategic planner for the swarm skill. Produces one decision-comple
 tools: ["*"]
 disallowedTools: [NotebookEdit, Agent]
 model: Ultimate
+fallback_models: [GLM-5.2]
 effort: max
 skills: [ast-grep, code-reading-skill]
 permissionMode: default

@@ -85,6 +85,30 @@ For each task in wave:
 
 Wait for ALL wave tasks before moving to next wave.
 
+## Concurrency limits (per-model FIFO)
+
+Source: OmO ConcurrencyManager (`packages/omo-opencode/src/features/background-agent/concurrency.ts`, MIT).
+
+For each worker to dispatch, the orchestrator should first attempt to acquire a slot:
+
+```bash
+scripts/swarm-concurrency.sh acquire "$MODEL" "$TASK_ID"
+```
+
+- Exit 0 → slot acquired, dispatch immediately
+- Exit 1 → at capacity, task queued; orchestrator should either wait (sleep 5s + retry) or defer to next wave
+
+After the worker completes:
+```bash
+scripts/swarm-concurrency.sh release "$MODEL" "$TASK_ID"
+```
+
+Default limit: 5 concurrent workers per model (mirrors OmO's `DEFAULT_CONCURRENCY`). Override:
+- Global: `SWARM_CONCURRENCY_DEFAULT=3`
+- Per-model: `scripts/swarm-concurrency.sh config GLM-5.2 8`
+
+Why: prevents cascade failure when a model provider rate-limits or degrades. Without this, a 10-worker wave all hitting Ultimate → 5 succeed, 5 fail with 429 → whole wave retried → doubles cost.
+
 ## Step 3 — Adversarial verification (HEAVY × 1)
 
 ```

@@ -4,6 +4,7 @@ description: "External documentation and OSS research. Searches official docs, G
 tools: ["*"]
 disallowedTools: [Edit, NotebookEdit, Agent]
 model: Qwen3.7-Max-DogFooding
+fallback_models: [GLM-5.2]
 effort: max
 skills: [code-reading-skill]
 permissionMode: default

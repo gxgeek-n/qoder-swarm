@@ -4,6 +4,7 @@ description: Error recovery router for the swarm skill. Dispatched when multiple
 tools: ["*"]
 disallowedTools: [Write, Edit, NotebookEdit, Agent]
 model: DeepSeek-V4-Flash
+fallback_models: [GLM-5.2]
 effort: medium
 skills: [ast-grep, code-reading-skill]
 permissionMode: default

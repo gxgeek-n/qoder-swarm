@@ -82,6 +82,7 @@ State that gets written into user projects (I3):
 - Model names in agent frontmatter (Qwen3.7-Max-DogFooding, Ultimate, GLM-5.2, DeepSeek-V4-Flash — case-sensitive, must match `qodercli --list-models` exactly; re-tune as Qoder model catalog evolves)
 - README sections — additive
 - Workflows under `workflows/*.mjs` — they're optional reference impls, not the source of truth
+- Agent frontmatter `fallback_models:` field — ordered list of retry models; orchestrator honors when primary fails (see `references/_shared.md` Fallback chain section)
 
 ## How to extend safely
 
