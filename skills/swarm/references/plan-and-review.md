@@ -86,6 +86,52 @@ This is **not** a workflow gate — the planner still decides scope, ordering, g
 
 Save plan to `.swarm/plan-and-review/{slug}.md`.
 
+### Task granularity guidance (from real cost data)
+
+Data from 2026-07-01: A typical self-bootstrap generates 11 swarm-worker dispatches averaging 12K tokens each. Grouping related edits into fewer coarser tasks reduces total dispatches → reduces token cost linearly.
+
+**Golden zone: 3-5 related edits per task.**
+
+**Guidelines:**
+
+1. **Group by cohesive change**: If tasks A, B, C touch the same 1-3 files with a single conceptual purpose (e.g., "add jq fallback + tests + docs"), merge them into one task.
+
+2. **Split by orthogonal concerns**: If a task touches >5 files across different subsystems (bash script + agent frontmatter + doc + smoke test), split at the subsystem boundary.
+
+3. **Preserve parallelism**: Only merge tasks that have the same dependency edge. If A → B → C is a chain, don't merge — they can't parallelize as one dispatch anyway.
+
+4. **Preserve testability**: Each merged task must still have a single acceptance recipe. If you'd need 3 separate verify commands, that's 3 tasks.
+
+### Anti-pattern (avoid)
+
+**Too fine**: 11 tasks each editing 1 file
+```
+T1: edit script.sh add function foo
+T2: edit script.sh add function bar
+T3: edit doc.md link to foo
+```
+
+**Too coarse**: 1 mega-task touching 15 files
+```
+T1: implement everything
+```
+
+**Right**: 3-4 tasks each edit 2-4 related files
+```
+T1: script.sh core impl + inline unit tests
+T2: doc.md + reference wiring + smoke assertion
+T3: agent frontmatter + shadow variants
+```
+
+### How to gauge before writing plan
+
+Estimate: `dispatches × 12K tokens × model_multiplier = credit`.
+
+Example baseline: 11 dispatches × 12K × 0.6 (GLM-5.2) / 1000 = 79 credit.
+After grouping to 5 tasks × 15K × 0.6 / 1000 = 45 credit → 43% savings.
+
+Bigger task = slightly bigger prompt (target ≤2500 chars per worker prompt, see _shared.md HARD RULE) but same-model-per-task means cost scales with #dispatches roughly linearly.
+
 ## Stage 3 — Gap analysis (HEAVY × 1)
 
 ```

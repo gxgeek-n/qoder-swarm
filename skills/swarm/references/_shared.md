@@ -132,6 +132,39 @@ next: <one-line handoff hint, or "none">
 
 Orchestrator reads files when needed via Read tool, doesn't trust inline summaries.
 
+## Sub-agent PROMPT size contract (HARD RULE — from token cost analysis)
+
+Every dispatched sub-agent prompt MUST be <=2500 chars. Bigger prompts cost more tokens (both input tokens billed AND response tokens tend to bloat proportionally).
+
+Real data from 2026-07-01 analysis (scripts/swarm-cost-qoder.py):
+- 11 swarm-worker dispatches average 12K tokens each
+- Longest single prompt: 8734 chars (contained full source code heredoc)
+- Prompt-size correlates strongly with response-size and total cost
+
+### What to include
+
+- Task ID + one-line goal
+- File paths (absolute or CWD-relative)
+- 3-5 bullet WHAT TO DO
+- Reference paths (worker Reads them, don't paste)
+- Verify recipe name OR <=80-char inline check
+- SCOPE limits
+
+### What to EXCLUDE
+
+- Full source code of files being ported (paste path instead, worker Reads it)
+- Multi-heredoc test scripts (use recipe)
+- 5-line explanation of "why we're doing this" (worker reads plan.md if unclear)
+- Example outputs (worker infers from spec)
+- Boilerplate template blocks (reference worker-template.md)
+
+### Enforcement
+
+Before Agent dispatch, orchestrator MUST self-check: `[ ${#prompt} -le 2500 ]`. If longer, refactor: extract heredocs to referenced files, remove redundant explanation, use recipe name.
+
+See `references/worker-template.md` for the target shape.
+See `references/worker-verify-recipes.md` for named verify recipes.
+
 ## Summary mode for sub-agent returns (smolagents pattern)
 
 When a sub-agent finishes a long task and writes a report to `.swarm/`, the inline return should use **summary mode** (smolagents `write_memory_to_messages(summary_mode=True)` in `memory.py:92`):
