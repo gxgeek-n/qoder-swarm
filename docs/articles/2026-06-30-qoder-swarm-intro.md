@@ -131,7 +131,7 @@ disallowedTools: [Agent]
 三步安装，30 分钟内跑起来：
 
 ```bash
-git clone git@gitlab.alibaba-inc.com:gxgeek/qoder-swarm.git
+git clone https://github.com/gxgeek/qoder-swarm.git
 cd qoder-swarm && bash install.sh
 # 重启 Qoder CLI，swarm Skill 自动加载
 ```
@@ -292,4 +292,4 @@ worker 在修改文件前会先跑 `overlap check`，如果发现目标文件已
 
 > qoder-swarm 还很年轻 —— 它解决的是 "Qoder CLI 用户怎么协调多个 agent" 这个具体问题，不是 multi-agent 的 silver bullet。我们站在 LazyCodex/OmO（内部仓库，MIT）和 ThreadDeck（内部仓库，MIT）两个内部项目的肩膀上做了 port，蒸馏了 [Microsoft Semantic Kernel](https://github.com/microsoft/semantic-kernel)（MIT）的 Magentic 群对话、[ClawTeam](https://github.com/HKUDS/ClawTeam)（MIT）的 DAG 自协调、[smolagents](https://github.com/huggingface/smolagents)（Apache-2.0）的 token 优化、[openai-agents-python](https://github.com/openai/openai-agents-python)（MIT）的 handoff 协议、以及 [agno](https://github.com/agno-agi/agno)（MIT）的 evidence-driven 模式。
 >
-> 代码全部开源在 `git@gitlab.alibaba-inc.com:gxgeek/qoder-swarm.git`，一行 `bash install.sh` 装好。欢迎在评论区交流，或在仓库提 Issue / MR —— 特别欢迎贡献新的 pattern（写一个 `references/<your-pattern>.md` + 一段 router 入口即可）。如果你也在用 Qoder CLI，且经常觉得"这个任务一个 agent 干不完"，那就试试让一群 agent 来开一次会。
+> 代码全部开源在 `https://github.com/gxgeek/qoder-swarm.git`，一行 `bash install.sh` 装好。欢迎在评论区交流，或在仓库提 Issue / MR —— 特别欢迎贡献新的 pattern（写一个 `references/<your-pattern>.md` + 一段 router 入口即可）。如果你也在用 Qoder CLI，且经常觉得"这个任务一个 agent 干不完"，那就试试让一群 agent 来开一次会。

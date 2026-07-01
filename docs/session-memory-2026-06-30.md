@@ -4,7 +4,7 @@
 
 ## 项目是什么
 
-`qoder-swarm` — Qoder CLI 的多 agent 编排套件，从 LazyCodex/OmO + ThreadDeck 移植。Repo: `git@gitlab.alibaba-inc.com:gxgeek/qoder-swarm.git`
+`qoder-swarm` — Qoder CLI 的多 agent 编排套件，从 LazyCodex/OmO + ThreadDeck 移植。Repo: `git@github.com/gxgeek/qoder-swarm.git`
 
 核心是 **1 个 swarm skill + 7 个 swarm-* subagent + 10 个 reference pattern**。
 
@@ -16,7 +16,7 @@ qoder-swarm/
 ├── Makefile               ← make help/install/test/doctor/status/lint/clean
 ├── README.md              ← 含 Testing / Security Notes / Customizing 章节
 ├── LICENSE                ← MIT
-├── package.json           ← repository: gitlab.alibaba-inc.com:gxgeek/qoder-swarm
+├── package.json           ← repository: github.com/gxgeek/qoder-swarm
 ├── .aoneci/smoke.yaml     ← Aone CI 每 push 跑 smoke (alios-8u + pip Pillow + tests/smoke-test.sh)
 ├── .claude-plugin/README.md  ← 指向 .qoder-plugin
 ├── .qoder-plugin/plugin.json
@@ -78,7 +78,7 @@ ai-prd session 扫了 277 prompts，**31 个该触发 swarm 没触发**：
 
 ## Aone CI 状态
 
-- 仓库: https://code.alibaba-inc.com/gxgeek/qoder-swarm
+- 仓库: https://github.com/gxgeek/qoder-swarm
 - Pipeline: `.aoneci/smoke.yaml`，每 push 跑 ~20s
 - 默认 GREEN，已验证 RED→GREEN 失败模式
 - 用 alios-8u image + mirrors.aliyun.com/pypi (装 pyyaml + Pillow)

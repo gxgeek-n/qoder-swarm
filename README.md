@@ -20,16 +20,28 @@ Turn a single Qoder session into a multi-agent control room with model-tiered co
 
 ## Install
 
+### Option A: Plugin install (recommended)
+
 ```bash
-git clone git@gitlab.alibaba-inc.com:gxgeek/qoder-swarm.git
+qodercli plugin install https://github.com/gxgeek/qoder-swarm.git
+```
+
+Or from local clone:
+```bash
+git clone https://github.com/gxgeek/qoder-swarm.git
+cd qoder-swarm
+qodercli plugin install .
+```
+
+### Option B: Manual install
+
+```bash
+git clone https://github.com/gxgeek/qoder-swarm.git
 cd qoder-swarm
 bash install.sh
 ```
 
-Or let Qoder do it:
-```
-Clone qoder-swarm and run its install.sh
-```
+After install, reload in your session: `/agents reload` + `/skills reload`.
 
 ## Orchestration Patterns
 
