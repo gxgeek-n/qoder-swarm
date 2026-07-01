@@ -1,11 +1,11 @@
 ---
 name: swarm
-description: "Multi-agent orchestration kit (qoder-swarm). **MUST USE** when the user says: 多个subagent / 多 agent / parallel agents / 并行执行 / 对抗审查 / 对抗审查下 / 你确定可行 / 代码review / code review / 审查代码 / 代码review了么 / 5-agent review / plan-and-review / start-work / ulw-loop / ultraresearch / init-deep / visual QA / team mode / 团队模式 / 一直跑到完成 / 规划+实现+审查 / 走完整流程 / 多角色 / cross-session / 深度研究 / 彻底研究 / 清理AI代码 / remove slop / 仔细排查 / 仔细排查下 / 顶层设计 / 端到端模拟测试 / 端到端验证 / parallel tool_use / 并发 tool_use. **ALSO USE** for tasks needing: (a) 5+ steps across multiple files; (b) parallel dispatch of independent subtasks; (c) adversarial review by an INDEPENDENT reviewer (not self-review); (d) long-running loops with evidence checkpoints; (e) cross-Qoder-session coordination; (f) ANY '你确定？' / '对抗审查下' / '严格 review 下' phrasing which signals user wants an independent second opinion. Prefer swarm OVER plain Agent/general-purpose when the user signals multi-step / parallel / review / orchestration. For single-file edits, quick lookups, online diagnosis, or single-domain operations, defer to the more specific skill (diagnose, code-reading-skill, tech-prd-v2, etc.) — but if you find yourself about to spawn 2+ Agents for the same goal, use swarm instead. Routes to one of 11 patterns via references/*.md with model tiering (free Qwen for search, Ultimate for planner+reviewer, GLM for workers)."
+description: "Multi-agent orchestration kit (qoder-swarm). **MUST USE** when the user says: 多个subagent / 多 agent / parallel agents / 并行执行 / 对抗审查 / 对抗审查下 / 你确定可行 / 代码review / code review / 审查代码 / 代码review了么 / 5-agent review / plan-and-review / start-work / ulw-loop / ultraresearch / init-deep / visual QA / team mode / 团队模式 / 一直跑到完成 / ralph / persistence loop / 不停直到完成 / all stories pass / PRD-driven / don't stop until done / 规划+实现+审查 / 走完整流程 / 多角色 / cross-session / 深度研究 / 彻底研究 / 清理AI代码 / remove slop / 仔细排查 / 仔细排查下 / 顶层设计 / 端到端模拟测试 / 端到端验证 / parallel tool_use / 并发 tool_use / autopilot / 全自动 / 一键完成 / full auto / hands off. **ALSO USE** for tasks needing: (a) 5+ steps across multiple files; (b) parallel dispatch of independent subtasks; (c) adversarial review by an INDEPENDENT reviewer (not self-review); (d) long-running loops with evidence checkpoints; (e) cross-Qoder-session coordination; (f) ANY '你确定？' / '对抗审查下' / '严格 review 下' phrasing which signals user wants an independent second opinion. Prefer swarm OVER plain Agent/general-purpose when the user signals multi-step / parallel / review / orchestration. For single-file edits, quick lookups, online diagnosis, or single-domain operations, defer to the more specific skill (diagnose, code-reading-skill, tech-prd-v2, etc.) — but if you find yourself about to spawn 2+ Agents for the same goal, use swarm instead. Routes to one of 12 patterns via references/*.md with model tiering (free Qwen for search, Ultimate for planner+reviewer, GLM for workers)."
 ---
 
 # swarm — Multi-Agent Orchestration Kit
 
-One skill, eleven orchestration patterns. Routes by user intent to the matching reference.
+One skill, twelve orchestration patterns. Routes by user intent to the matching reference.
 
 ## Lazy-load contract
 
@@ -33,6 +33,10 @@ If you (a future LLM) catch yourself wanting to paste a "Stage 1 — ..." block 
 | `ulw-loop` | "ulw-loop" / "keep going" / "一直跑到完成" |
 | `magentic-loop` | "magentic" / "group conversation" / "群对话" / "speaker selection" / "iterative debate" / "对辩收敛" / multi-agent + complex decision / "讨论收敛" |
 | `self-improve` | "self-improve" / "evolutionary" / "tournament" / "自进化" / "持续优化" / "benchmark loop" / "optimize metric" / "迭代优化" |
+| `autopilot` | "autopilot" / "全自动" / "一键完成" / "full auto" / "hands off" / "build it end to end" / "走完整流程" |
+| `ralph` | "ralph" / "persistence loop" / "不停直到完成" / "all stories pass" / "PRD-driven" / "don't stop until done" / "keep going until complete" |
+| `cancel` | "cancel" / "stop" / "取消" / "中止" / "stop swarm" / "取消任务" |
+| `skillify` | "skillify" / "make this a skill" / "make skill" / "提取技能" / "做成skill" / "save this workflow" / "保存这个流程" |
 
 ### Decision diagram — pick one pattern
 
@@ -121,6 +125,10 @@ swarm/
     ├── ulw-loop.md                   ← self-loop with evidence ledger
     ├── magentic-loop.md              ← group conversation with speaker selection
     ├── self-improve.md               ← evolutionary tournament optimization
+    ├── ralph.md                      ← PRD-driven persistence loop (don't stop until all stories pass)
+    ├── skillify.md                   ← turn session into reusable skill draft
+    ├── autopilot.md                  ← full autonomous pipeline (plan→execute→QA→validate→commit)
+    ├── cancel.md                     ← graceful cancellation + resume
     └── _shared.md                    ← TASK template, error handling, retry rules
 ```
 
