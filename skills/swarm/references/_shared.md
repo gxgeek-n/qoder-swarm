@@ -435,3 +435,21 @@ decays over time and strengthens with reinforcement (LLM Wiki v2 pattern).
 
 Pages without frontmatter are skipped (raw files never modified). stdlib only,
 no PyYAML dependency.
+
+## CWD must be a git repo when dispatching swarm-worker (HARD RULE)
+
+**Bug**: `swarm-worker · Error: Failed to resolve base branch "HEAD": git rev-parse failed`
+
+**Root cause**: Qoder CLI internally runs `git rev-parse` even when `isolation: default`. If the session's cwd is not a git repo (e.g., `/Users/gx/`), this fails.
+
+**Fix**: Every Agent call with `subagent_type: "swarm-worker*"` MUST include `cwd: "/path/to/git/repo"`:
+```
+Agent(subagent_type="swarm-worker", cwd="/Users/gx/qoder-swarm", prompt="...")
+```
+
+**Orchestrator self-check**: Before dispatching any swarm-* worker, verify:
+1. Is there a known git repo path? (from the user's task context or `git rev-parse --show-toplevel`)
+2. If yes → pass as `cwd`
+3. If no → use `subagent_type: "general-purpose"` instead (it doesn't hit the git path)
+
+This is documented in `docs/session-memory-2026-06-30.md` "踩坑 #1" and is a Qoder platform behavior we cannot fix — only work around.
