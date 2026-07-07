@@ -453,3 +453,19 @@ Agent(subagent_type="swarm-worker", cwd="/Users/gx/qoder-swarm", prompt="...")
 3. If no → use `subagent_type: "general-purpose"` instead (it doesn't hit the git path)
 
 This is documented in `docs/session-memory-2026-06-30.md` "踩坑 #1" and is a Qoder platform behavior we cannot fix — only work around.
+
+## Qoder client-side concurrency limit (HARD RULE)
+
+**Symptom**: "Model request queued..." repeats 20+ times when dispatching multiple sub-agents.
+
+**Root cause**: Qoder CLI has an internal client-side concurrency cap for Agent dispatches (independent of our swarm-concurrency.sh which is server-side model quota). Exceeding it queues subsequent calls indefinitely.
+
+**Empirical limit**: ~3-4 concurrent sub-agents in a single message dispatch. Beyond that, queue delay is unbounded.
+
+**Fix**:
+1. Dispatch sub-agents in waves of **2-3 max per message**
+2. Wait for previous wave to return before dispatching next
+3. If you need >3 parallel workers → use start-work pattern's wave dispatch (which serializes across messages naturally via the DAG)
+4. Alternative: use general-purpose agent (fewer platform limits) for lower-priority tasks
+
+**Anti-pattern**: Dispatching 5+ sub-agents in one message = 40+ "queued" messages = user pain.
