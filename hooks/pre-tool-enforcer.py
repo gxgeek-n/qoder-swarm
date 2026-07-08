@@ -43,18 +43,20 @@ def main():
     if _CANCEL_SIGNAL.is_file():
         print("⚠️ Cancel signal active. This dispatch may be wasted. Check cancel status.")
 
+    # d. CWD git-repo check for swarm-worker (Qoder CLI internally runs git rev-parse
+    #    even with isolation:default — fails if session cwd is not a git repo)
+    cwd_param = ti.get("cwd", "") or ""
+    if subagent_type.startswith("swarm-worker") and not cwd_param:
+        import subprocess
+        try:
+            subprocess.run(["git", "rev-parse", "--git-dir"],
+                           capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print('⚠️ swarm-worker dispatched without cwd param and session cwd is not a git repo. '
+                  'Add cwd="/path/to/repo" to avoid "Failed to resolve base branch HEAD" error.')
+
 
 if __name__ == "__main__":
     main()
-    # d. CWD git-repo check for swarm-worker
-    sub = inp.get('subagent_type', '')
-    cwd_param = inp.get('cwd', '')
-    if sub.startswith('swarm-worker') and not cwd_param:
-        # No cwd specified — will inherit session cwd which may not be a git repo
-        import subprocess
-        try:
-            subprocess.run(['git', 'rev-parse', '--git-dir'], capture_output=True, check=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            print('⚠️ swarm-worker dispatched without cwd param and session cwd is not a git repo. Add cwd="/path/to/repo" to avoid "Failed to resolve base branch HEAD" error.')
 
 
