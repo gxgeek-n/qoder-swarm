@@ -45,17 +45,26 @@ CREDIT_MULTIPLIER = {
     "Auto": 1.00,  # unknown, assume mid-tier
 }
 
-# subagent_type → model (from frontmatter, cached here to avoid parsing files)
+
+def _load_swarm_bindings() -> tuple[dict, dict]:
+    """subagent→model and model→cost from agents/models.yml (source of truth)."""
+    yml = Path(__file__).resolve().parent.parent / "agents" / "models.yml"
+    try:
+        import yaml
+        data = yaml.safe_load(yml.read_text()) or {}
+    except Exception:
+        return {}, {}
+    sub = {role: cfg["model"] for role, cfg in data.items() if "model" in cfg}
+    mult = {cfg["model"]: float(cfg.get("cost", 0)) for cfg in data.items() if "model" in cfg}
+    return sub, mult
+
+
+_swarm_sub, _swarm_mult = _load_swarm_bindings()
+CREDIT_MULTIPLIER.update(_swarm_mult)
+
+# subagent_type → model (swarm roles from agents/models.yml; rest are static fallbacks)
 SUBAGENT_MODEL = {
-    "swarm-explorer": "Peach-07-17-DogFooding",
-    "swarm-librarian": "Peach-07-17-DogFooding",
-    "swarm-worker": "GLM-5.2",
-    "swarm-worker-glm": "GLM-5.2",
-    "swarm-worker-qwen": "Peach-07-17-DogFooding",
-    "swarm-planner": "Kimi-K3",
-    "swarm-reviewer": "Kimi-K3",
-    "swarm-context-manager": "DeepSeek-V4-Flash",
-    "swarm-error-coordinator": "DeepSeek-V4-Flash",
+    **_swarm_sub,
     "general-purpose": "GLM-5.2",
     "Explore": "Efficient",
     "Plan": "Performance",

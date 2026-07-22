@@ -40,8 +40,8 @@ Qoder's `Agent` tool **does not accept a `model` parameter at call time**. Model
 | Strategic planning | `swarm-planner` | `Kimi-K3` | `high` | Read/Write plan files only | Plan drafting in plan-and-review |
 | Adversarial review | `swarm-reviewer` | `Kimi-K3` | `high` | Read-only inspection | Gap analysis, code review, plan review |
 | Implementation worker | `swarm-worker` | `GLM-5.2` | `medium` | Read/Edit/Write/Bash | Worker dispatch in start-work, remove-ai-slops |
-| Context compression | `swarm-context-manager` | `DeepSeek-V4-Flash (0.10x)` | `low` | Read/Bash | Long-running loops, context overflow |
-| Error triage & recovery | `swarm-error-coordinator` | `DeepSeek-V4-Flash (0.10x)` | `medium` | Read/Bash | Worker failure classification, recovery routing |
+| Context compression | `swarm-context-manager` | `DeepSeek-V4-Flash` | `low` | Read/Bash | Long-running loops, context overflow |
+| Error triage & recovery | `swarm-error-coordinator` | `DeepSeek-V4-Flash` | `medium` | Read/Bash | Worker failure classification, recovery routing |
 
 These are the shipped defaults. Edit the `model:` field in the agent `.md` file or use `settings.json` overrides to customize.
 
