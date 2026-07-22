@@ -1,11 +1,11 @@
 # .aoneci/smoke.yaml
-# Runs tests/smoke-test.sh on every push and every opened MR.
+# Runs tests/smoke-test.sh on every push to main and every opened MR.
 # Syntax ref: https://aliyuque.antfin.com/aoneci/gncflv/zn9dhevbwby6715s
 name: smoke-test
 
 triggers:
   push:
-    branches: ['**']
+    branches: ['main']
   merge_request:
     target-branches: ['**']
 
@@ -24,6 +24,19 @@ jobs:
           pip3 --version
           bash --version | head -n1
 
+      - id: model-bindings
+        run: |
+          set -euxo pipefail
+          if [ -f agents/models.yml ]; then
+            pip3 install --no-cache-dir \
+              -i https://mirrors.aliyun.com/pypi/simple/ \
+              --trusted-host mirrors.aliyun.com \
+              pyyaml
+            python3 scripts/sync-models.py --check
+          else
+            echo "agents/models.yml not present, skipping model-bindings check"
+          fi
+
       - id: smoke
         run: |
           set -euxo pipefail
@@ -31,7 +44,7 @@ jobs:
             -i https://mirrors.aliyun.com/pypi/simple/ \
             --trusted-host mirrors.aliyun.com \
             pyyaml Pillow
-          bash tests/smoke-test.sh
+          bash tests/smoke-test.sh --verbose
 
       - id: verify-models
         run: |
