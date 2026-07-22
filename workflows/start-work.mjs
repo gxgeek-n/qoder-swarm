@@ -23,7 +23,7 @@ if (!planContent) {
 }
 
 // Model tiers - adjust to your preference / credit budget
-const CHEAP = 'Qwen3.7-Max-DogFooding'  // 0.00x - FREE! parsing, read-only
+const CHEAP = 'Peach-07-17-DogFooding'  // 0.00x - FREE! parsing, read-only
 const MID   = 'GLM-5.2'                 // 0.60x - implementation workers
 const HEAVY = 'GLM-5.2'                 // 0.60x - adversarial verification
 

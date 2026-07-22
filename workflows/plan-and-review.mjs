@@ -19,7 +19,7 @@ export const meta = {
 }
 
 // Model tiers - adjust to your preference / credit budget
-const CHEAP = 'Qwen3.7-Max-DogFooding'  // 0.00x - FREE! search, read-only
+const CHEAP = 'Peach-07-17-DogFooding'  // 0.00x - FREE! search, read-only
 const MID   = 'GLM-5.2'                 // 0.60x - code implementation
 const HEAVY = 'GLM-5.2'                 // 0.60x - deep reasoning + code
 // Total cost for plan-and-review: ~1.80x (vs 5x all-ultimate)

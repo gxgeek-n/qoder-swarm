@@ -29,30 +29,31 @@ from pathlib import Path
 # Model → credit multiplier (approximate — real pricing has input/output split)
 # ─────────────────────────────────────────────────────────────────────
 CREDIT_MULTIPLIER = {
-    "Qwen3.7-Max-DogFooding": 0.00,
-    "Qwen3.7-Max": 0.30,
-    "Qwen3.7-Plus": 0.20,
+    "Peach-07-17-DogFooding": 0.00,
+    "Qwen3.7-Max": 0.50,
+    "Qwen3.7-Plus": 0.10,
     "DeepSeek-V4-Flash": 0.10,
-    "DeepSeek-V4-Pro": 0.40,
+    "DeepSeek-V4-Pro": 0.50,
     "GLM-5.2": 0.60,
-    "Kimi-K2.7-Code": 0.50,
-    "MiniMax-M3": 0.30,
-    "Ultimate": 1.00,
-    "Performance": 0.60,
-    "Efficient": 0.10,
-    "Lite": 0.05,
-    "Auto": 0.60,  # unknown, assume mid-tier
+    "Kimi-K3": 0.80,
+    "Kimi-K2.7-Code": 0.30,
+    "MiniMax-M3": 0.20,
+    "Ultimate": 1.60,
+    "Performance": 1.10,
+    "Efficient": 0.30,
+    "Lite": 0.00,
+    "Auto": 1.00,  # unknown, assume mid-tier
 }
 
 # subagent_type → model (from frontmatter, cached here to avoid parsing files)
 SUBAGENT_MODEL = {
-    "swarm-explorer": "Qwen3.7-Max-DogFooding",
-    "swarm-librarian": "Qwen3.7-Max-DogFooding",
+    "swarm-explorer": "Peach-07-17-DogFooding",
+    "swarm-librarian": "Peach-07-17-DogFooding",
     "swarm-worker": "GLM-5.2",
     "swarm-worker-glm": "GLM-5.2",
-    "swarm-worker-qwen": "Qwen3.7-Max-DogFooding",
-    "swarm-planner": "Ultimate",
-    "swarm-reviewer": "Ultimate",
+    "swarm-worker-qwen": "Peach-07-17-DogFooding",
+    "swarm-planner": "Kimi-K3",
+    "swarm-reviewer": "Kimi-K3",
     "swarm-context-manager": "DeepSeek-V4-Flash",
     "swarm-error-coordinator": "DeepSeek-V4-Flash",
     "general-purpose": "GLM-5.2",

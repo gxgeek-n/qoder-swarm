@@ -23,7 +23,7 @@ const constraints = args.constraints || 'None specified'
 const base = args.base || 'HEAD~1'
 
 // Model tiers - adjust to your preference / credit budget
-const CHEAP = 'Qwen3.7-Max-DogFooding'  // 0.00x - FREE! search, read-only
+const CHEAP = 'Peach-07-17-DogFooding'  // 0.00x - FREE! search, read-only
 const MID   = 'GLM-5.2'                 // 0.60x - code, QA execution
 const HEAVY = 'GLM-5.2'                 // 0.60x - deep reasoning
 

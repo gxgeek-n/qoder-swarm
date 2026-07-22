@@ -18,7 +18,7 @@ export const meta = {
   },
 }
 
-const CHEAP = 'Qwen3.7-Max-DogFooding'
+const CHEAP = 'Peach-07-17-DogFooding'
 const MID   = 'GLM-5.2'
 const symptom = args.symptom
 const context = args.context || ''

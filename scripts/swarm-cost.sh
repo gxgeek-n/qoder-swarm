@@ -98,18 +98,18 @@ echo "By agent:"
 jq -r '.agent' "$LOG_FILE" | sort | uniq -c | sort -rn | sed 's/^/  /'
 echo ""
 echo "Estimated credits (rough):"
-# Credit multipliers: Qwen3.7-Max-DogFooding=0, GLM-5.2=0.6, Ultimate=1.0, DeepSeek-V4-Flash=0.1
+# Credit multipliers: Peach-07-17-DogFooding=0, GLM-5.2=0.6, Kimi-K3=0.8, DeepSeek-V4-Flash=0.1
 jq -r '.model' "$LOG_FILE" | awk '
-  /Qwen3.7-Max-DogFooding/ { free++ }
+  /Peach-07-17-DogFooding/ { free++ }
   /GLM-5.2/ { mid += 0.6 }
-  /Ultimate/ { heavy += 1.0 }
+  /Kimi-K3/ { heavy += 0.8 }
   /DeepSeek-V4-Flash/ { cheap += 0.1 }
   /inherit/ { unknown++ }
   END {
     total = free * 0 + mid + heavy + cheap
     printf "  Free (Qwen): %d calls x 0.00x = 0\n", free
     printf "  Mid (GLM-5.2): %.0f calls x 0.60x = %.1f\n", mid/0.6, mid
-    printf "  Heavy (Ultimate): %.0f calls x 1.00x = %.1f\n", heavy, heavy
+    printf "  Heavy (Kimi-K3): %.0f calls x 0.80x = %.1f\n", heavy/0.8, heavy
     printf "  Cheap (DeepSeek): %.0f calls x 0.10x = %.1f\n", cheap/0.1, cheap
     printf "  Unknown (inherit): %d calls\n", unknown
     printf "  ---------------------------------\n"

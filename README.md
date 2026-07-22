@@ -14,7 +14,7 @@ Turn a single Qoder session into a multi-agent control room with model-tiered co
 | 9 custom subagents | LazyCodex/OmO | `swarm-explorer/librarian/planner/reviewer/worker/worker-glm/worker-qwen/context-manager/error-coordinator` with per-role model tiers |
 | 10 hooks | Original + LazyCodex | Pre/post-tool, session-start, stop, and prompt-submit hooks for quality, memory, and audit |
 | Dispatch protocol | ThreadDeck | Multi-terminal collaboration via file system |
-| Model tiering | Original | Free Qwen for search, GLM for code, Ultimate for planning — save 60%+ credits |
+| Model tiering | Original | Free Qwen for search, GLM for code, Kimi-K3 for planning — save 60%+ credits |
 | Wiki integration | obsidian-wiki | Auto-ingest swarm outputs into an Obsidian vault (Karpathy LLM Wiki architecture) |
 | 10 Workflow scripts (optional) | LazyCodex/OmO | Reference `.mjs` runtime implementations; require Qoder Workflow tool feature flag |
 
@@ -77,13 +77,13 @@ The `workflows/*.mjs` scripts ship as reference implementations of the same patt
 Each workflow has 3 tiers at the top of the file:
 
 ```javascript
-const CHEAP = 'Qwen3.7-Max-DogFooding'  // 0.00x - FREE
+const CHEAP = 'Peach-07-17-DogFooding'  // 0.00x - FREE
 const MID   = 'GLM-5.2'                 // 0.60x - code
 const HEAVY = 'GLM-5.2'                 // 0.60x - reasoning
 ```
 
 Change these to any model from `/model`:
-- `Qwen3.7-Max-DogFooding` (0.00x) — free dogfooding
+- `Peach-07-17-DogFooding` (0.00x) — free dogfooding
 - `Qwen3.7-Plus` (0.10x) — cheap reasoning
 - `DeepSeek-V4-Flash` (0.10x) — cheap general
 - `MiniMax-M3` (0.20x) — multimodal
@@ -91,7 +91,7 @@ Change these to any model from `/model`:
 - `DeepSeek-V4-Pro` (0.50x) — strong reasoning
 - `Qwen3.7-Max` (0.50x/0.25x) — top tier, half price regular hours
 - `GLM-5.2` (0.60x) — engineering-grade
-- `Ultimate` (1.00x) — top reasoning, used for planner + reviewer
+- `Kimi-K3` (0.80x) — deep reasoning, used for planner + reviewer
 
 ## Hooks System
 
@@ -148,13 +148,13 @@ qoder-swarm/
 │   ├── references/          #   20 files (16 routable patterns + 4 utility)
 │   └── prompts/             #   7 prompt templates (context-recovery, replan, etc.)
 ├── agents/                  # 9 custom subagents with per-role models
-│   ├── swarm-explorer.md            # Qwen3.7-Max-DogFooding — read-only codebase search
-│   ├── swarm-librarian.md           # Qwen3.7-Max-DogFooding — external docs/OSS
-│   ├── swarm-planner.md             # Ultimate — strategic planning
-│   ├── swarm-reviewer.md            # Ultimate — adversarial review
+│   ├── swarm-explorer.md            # Peach-07-17-DogFooding — read-only codebase search
+│   ├── swarm-librarian.md           # Peach-07-17-DogFooding — external docs/OSS
+│   ├── swarm-planner.md             # Kimi-K3 — strategic planning
+│   ├── swarm-reviewer.md            # Kimi-K3 — adversarial review
 │   ├── swarm-worker.md              # GLM-5.2 — implementation (default)
 │   ├── swarm-worker-glm.md           # GLM-5.2 — GLM-pinned worker variant
-│   ├── swarm-worker-qwen.md          # Qwen3.7-Max-DogFooding — free-tier worker variant
+│   ├── swarm-worker-qwen.md          # Peach-07-17-DogFooding — free-tier worker variant
 │   ├── swarm-context-manager.md     # DeepSeek-V4-Flash — context window management
 │   └── swarm-error-coordinator.md   # DeepSeek-V4-Flash — error recovery
 ├── workflows/               # 10 Workflow .mjs (optional, feature-gated)
@@ -199,13 +199,13 @@ Each subagent's `model:` field controls which LLM it uses. Defaults use specific
 
 | Agent | Default model | Cost tier |
 |-------|--------------|-----------|
-| swarm-explorer | Qwen3.7-Max-DogFooding | 0.00x (free) |
-| swarm-librarian | Qwen3.7-Max-DogFooding | 0.00x (free) |
-| swarm-planner | Ultimate | 1.00x |
-| swarm-reviewer | Ultimate | 1.00x |
+| swarm-explorer | Peach-07-17-DogFooding | 0.00x (free) |
+| swarm-librarian | Peach-07-17-DogFooding | 0.00x (free) |
+| swarm-planner | Kimi-K3 | 0.80x |
+| swarm-reviewer | Kimi-K3 | 0.80x |
 | swarm-worker | GLM-5.2 | 0.60x |
 | swarm-worker-glm | GLM-5.2 | 0.60x |
-| swarm-worker-qwen | Qwen3.7-Max-DogFooding | 0.00x (free) |
+| swarm-worker-qwen | Peach-07-17-DogFooding | 0.00x (free) |
 | swarm-context-manager | DeepSeek-V4-Flash | 0.10x |
 | swarm-error-coordinator | DeepSeek-V4-Flash | 0.10x |
 
@@ -213,7 +213,7 @@ To force a specific model:
 
 ```yaml
 # ~/.qoder/agents/swarm-explorer.md
-model: Qwen3.7-Max-DogFooding   # free dogfooding model
+model: Peach-07-17-DogFooding   # free dogfooding model
 ```
 
 Run `/model` inside Qoder to see what's available in your account.
@@ -261,7 +261,7 @@ Use `settings.json` overrides to keep `~/.qoder/agents/swarm-*.md` clean for eas
   "agents": {
     "overrides": {
       "swarm-explorer": {
-        "modelConfig": { "model": "Qwen3.7-Max-DogFooding" },
+        "modelConfig": { "model": "Peach-07-17-DogFooding" },
         "mcpServers": { "code": { "type": "http", "url": "..." } }
       }
     }

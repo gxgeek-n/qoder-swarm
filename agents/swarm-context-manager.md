@@ -4,7 +4,7 @@ description: Context compression specialist for the swarm skill. Reduces accumul
 tools: ["*"]
 disallowedTools: [Edit, NotebookEdit, Agent]
 model: DeepSeek-V4-Flash
-fallback_models: [Qwen3.7-Max-DogFooding]
+fallback_models: [Peach-07-17-DogFooding]
 effort: low
 skills: [code-reading-skill]
 permissionMode: default
