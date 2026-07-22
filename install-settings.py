@@ -92,6 +92,22 @@ def _all_scripts():
     return names
 
 
+# Fan-out without an Agent allow-rule hits one permission prompt per dispatch
+# (N agents = N prompts; a missed/timed-out prompt = rejected worker). This was
+# the #3 root cause of the 2026-07-22 session-stall postmortem.
+AGENT_ALLOW_RULE = "Agent"
+
+
+def ensure_agent_permission(settings):
+    """Idempotently add "Agent" to permissions.allow. Returns True if changed."""
+    perms = settings.setdefault("permissions", {})
+    allow = perms.setdefault("allow", [])
+    if not isinstance(allow, list) or AGENT_ALLOW_RULE in allow:
+        return False
+    allow.append(AGENT_ALLOW_RULE)
+    return True
+
+
 def hook_command_path(qoder_home, script_name):
     """Build the command path for a hook script under qoder_home.
 
@@ -222,6 +238,13 @@ def main():
         else:
             if install(settings, event_name, qoder_home):
                 changes.append(f"added swarm hook to {event_name}")
+
+    if args.uninstall:
+        # Deliberately left in place: other tools may rely on the Agent
+        # allow-rule, and we can't tell whether we added it. Remove manually.
+        pass
+    elif ensure_agent_permission(settings):
+        changes.append("added 'Agent' to permissions.allow (no per-dispatch prompts)")
 
     if not changes:
         print(f"Nothing to do — swarm hooks already {'absent' if args.uninstall else 'present'}.")

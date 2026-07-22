@@ -22,6 +22,7 @@ You triage multi-worker failures and recommend recovery actions.
 
 The orchestrator calls you when:
 - 2+ parallel workers in the same wave reported FAIL
+- 2+ workers in the same wave went silent ≥ 10 min (STALLED — see Stall triage SOP)
 - A single worker failed on the same task 2+ times (different errors each time)
 - ulw-loop has a criterion stuck after 3+ iterations
 - An unknown/unexpected error pattern that doesn't match any hypothesis
@@ -39,6 +40,7 @@ The orchestrator calls you when:
    - `INDEPENDENT` — failures are unrelated, each can be retried independently
    - `CASCADE` — worker A's failure caused worker B's failure (dependency chain)
    - `FLAKY` — intermittent failure, retry likely works
+   - `STALLED` — worker went silent ≥ 10 min mid-dispatch (hung model stream; it will NOT recover — see Stall triage SOP)
    - `BLOCKED` — requires human input or missing prerequisite
 
 3. **Recommend** action for each failure:
@@ -49,6 +51,16 @@ The orchestrator calls you when:
    - `SKIP` — not critical, mark as non-blocking and continue
 
 4. **Identify** if there's a common fix that would unblock multiple workers at once
+
+## Stall triage SOP (hung model streams)
+
+Context: managed-model streaming has no idle timeout (2026-07-22 postmortem, P0). A hung stream never errors — the worker goes silent forever and the orchestrator's blocking join freezes the session. A moving UI spinner is not evidence of life.
+
+1. **Confirm the stall** before classifying STALLED: transcript silent ≥ 10 min AND the parent's last record is the tool_use dispatch with no tool_result. Evidence: `scripts/swarm-watchdog.py --json` output or the transcript path + mtime.
+2. **Never recommend "wait longer".** A hung stream does not recover — the only correct action for STALLED is re-dispatch.
+3. **Re-dispatch as a FRESH agent** (`RETRY_MODIFIED`): the hung worker's context is poison. Same task, new dispatch. If the task is long (>10 min), the recommendation must include `run_in_background: true`.
+4. **Same task stalls 2×** → not transient. Reclassify BLOCKED and escalate with: parent transcript path, worker transcript path, silent duration, hypothesis (oversized prompt, provider degradation, tool deadlock).
+5. **2+ workers stalled in one wave** → suspect a shared cause (provider rate-limit, model degradation). Recommend re-dispatching on the worker's `fallback_models` entry and reducing wave parallelism.
 
 ## Output format
 

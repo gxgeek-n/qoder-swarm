@@ -469,3 +469,19 @@ This is documented in `docs/session-memory-2026-06-30.md` "踩坑 #1" and is a Q
 4. Alternative: use general-purpose agent (fewer platform limits) for lower-priority tasks
 
 **Anti-pattern**: Dispatching 5+ sub-agents in one message = 40+ "queued" messages = user pain.
+
+## Sub-agent stall ("fake think") HARD RULE
+
+**Symptom**: UI spinner active, sub-agent "thinking", but transcript writes nothing — observed 6.5 h of zero events while the worker's result had already returned (2026-07-22 postmortem, P0 filed).
+
+**Root cause**: managed-model streaming has no idle timeout (`streamIdleTimeoutMs` unset → OS TCP keepalive ~2 h is the only backstop). A hung stream never errors, so the orchestrator's blocking join on the wave waits forever. One hung agent stalls the whole session.
+
+**Rules**:
+
+1. **Never wait indefinitely on a wave.** If a worker is silent ≥ 10 min (no transcript writes, no return), treat it as STALLED — it will not recover.
+2. **Long workers (>10 min expected) MUST be dispatched with `run_in_background: true`.** A blocking join on a long worker amplifies one hang into a session-wide freeze.
+3. **Max ONE long-running worker per blocking wave.** Two blocking long workers = two independent hang risks joined with AND.
+4. On stall: don't retry in place, don't "wait a bit longer". Re-dispatch the task as a **fresh agent** (hung context is poison), and route multi-stall cases to `swarm-error-coordinator` (see its Stall triage SOP).
+5. Detection: `scripts/swarm-watchdog.py` flags sessions whose parent transcript ends in a pending tool_use with ≥ threshold silence (corpses and human-wait states filtered out). Run it when a session feels stuck; `--notify` for macOS alerts.
+
+**Anti-pattern**: "The spinner is still moving, give it more time" — a hung stream's spinner moves forever.

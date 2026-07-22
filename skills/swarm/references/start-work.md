@@ -85,6 +85,16 @@ For each task in wave:
 
 Wait for ALL wave tasks before moving to next wave.
 
+### Wave join safety (from 2026-07-22 hang postmortem)
+
+A blocking join amplifies one hung stream into a session-wide freeze (managed-model streaming has no idle timeout — a hang never errors, it just goes silent forever).
+
+- **Workers expected to run >10 min MUST be dispatched with `run_in_background: true`**; collect results via the completion notification instead of a blocking join.
+- **Max ONE long-running worker per blocking wave.** If the wave has 2+ long tasks, background all but one.
+- **10-minute silence = STALLED.** No transcript writes + no return for 10 min → the worker is not coming back. Re-dispatch the task as a fresh agent (never wait longer), then continue the wave without it.
+- 2+ stalled workers in one wave → route to `swarm-error-coordinator` (Stall triage SOP) before re-dispatching.
+- Full rules: `_shared.md` § "Sub-agent stall (fake think) HARD RULE". Detection: `scripts/swarm-watchdog.py`.
+
 ## Concurrency limits (per-model FIFO)
 
 Source: OmO ConcurrencyManager (`packages/omo-opencode/src/features/background-agent/concurrency.ts`, MIT).

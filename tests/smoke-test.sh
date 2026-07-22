@@ -127,6 +127,8 @@ expect "scripts/file-overlap.sh present"   "[ -f $TMP_HOME/scripts/file-overlap.
 expect "scripts/file-overlap.sh exec"      "[ -x $TMP_HOME/scripts/file-overlap.sh ]"
 expect "scripts/swarm-state.sh present"    "[ -f $TMP_HOME/scripts/swarm-state.sh ]"
 expect "scripts/swarm-state.sh exec"       "[ -x $TMP_HOME/scripts/swarm-state.sh ]"
+expect "scripts/swarm-watchdog.py present" "[ -f $TMP_HOME/scripts/swarm-watchdog.py ]"
+expect "scripts/swarm-watchdog.py exec"    "[ -x $TMP_HOME/scripts/swarm-watchdog.py ]"
 expect "skills/swarm/SKILL.md"         "[ -f $TMP_HOME/skills/swarm/SKILL.md ]"
 expect "skills/swarm/references/ ≥ 10" "[ \$(ls $TMP_HOME/skills/swarm/references/*.md 2>/dev/null | wc -l) -ge 10 ]"
 expect "skills marker file present"    "[ -f $TMP_HOME/skills/swarm/.swarm-installed ]"
@@ -177,6 +179,11 @@ expect "PostToolUse hook points to tmpdir" \
   "grep -q '$TMP_HOME/hooks/swarm-comment-checker.sh' $TMP_HOME/settings.json"
 expect "Stop hook points to tmpdir" \
   "grep -q '$TMP_HOME/hooks/swarm-stop-continuation.sh' $TMP_HOME/settings.json"
+
+# Exact JSON membership check — grep '"Agent"' would false-positive on hook
+# matchers (PreToolUse Agent hooks).
+expect "permissions.allow contains Agent rule" \
+  "python3 -c 'import json,sys; sys.exit(0 if \"Agent\" in json.load(open(\"$TMP_HOME/settings.json\")).get(\"permissions\",{}).get(\"allow\",[]) else 1)'"
 
 # ─────────────────────────────────────────────────────────────────────
 echo ""
@@ -341,6 +348,41 @@ expect "verify-models.sh: all swarm-* model names valid in Qoder catalog" \
 
 # ─────────────────────────────────────────────────────────────────────
 echo ""
+echo "[7.6/8] swarm-watchdog.py stall detection"
+# ─────────────────────────────────────────────────────────────────────
+# Fixtures: "stalled" dir holds one hung Agent dispatch (assistant tool_use,
+# silent 2h). "clean" dir holds the three states that must NOT be flagged:
+# an idle session, a human-wait session (AskUserQuestion), and a fresh
+# dispatch still under the silence threshold.
+WD_FIX="$TMP_HOME/wd-fixtures"
+mkdir -p "$WD_FIX/stalled/projects/p" "$WD_FIX/clean/projects/p"
+python3 - "$WD_FIX" <<'EOF'
+import json, os, sys, time
+base = sys.argv[1]
+def put(d, name, rec, age_min):
+    p = os.path.join(base, d, "projects", "p", name)
+    open(p, "w").write(json.dumps(rec) + "\n")
+    t = time.time() - age_min * 60
+    os.utime(p, (t, t))
+agent_call = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Agent", "input": {}}]}}
+ask_call = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "AskUserQuestion", "input": {}}]}}
+idle = {"type": "assistant", "message": {"content": [{"type": "text", "text": "done"}]}}
+put("stalled", "s1.jsonl", agent_call, 120)
+put("clean", "c1.jsonl", idle, 120)
+put("clean", "c2.jsonl", ask_call, 120)
+put("clean", "c3.jsonl", agent_call, 1)
+EOF
+WD="$TMP_HOME/scripts/swarm-watchdog.py"
+expect "watchdog: stalled Agent dispatch flagged (exit 1)" \
+  "python3 $WD --qoder-home $WD_FIX/stalled --threshold 30 --no-process-check >/dev/null 2>&1; [ \$? -eq 1 ]"
+expect "watchdog: stalled output prints STALLED" \
+  "{ python3 $WD --qoder-home $WD_FIX/stalled --threshold 30 --no-process-check 2>/dev/null || true; } | grep -q STALLED"
+expect "watchdog: idle/human-wait/fresh sessions not flagged" \
+  "python3 $WD --qoder-home $WD_FIX/clean --threshold 30 --no-process-check >/dev/null 2>&1"
+rm -rf "$WD_FIX"
+
+# ─────────────────────────────────────────────────────────────────────
+echo ""
 echo "[8/8] Uninstall round-trip"
 # ─────────────────────────────────────────────────────────────────────
 python3 "$REPO_ROOT/install-settings.py" --qoder-home "$TMP_HOME" --uninstall >/dev/null 2>&1
@@ -352,6 +394,10 @@ expect "user-hook still present after uninstall" \
   "grep -q 'user-hook' $TMP_HOME/settings.json"
 expect "user customField still present after uninstall" \
   "grep -q 'must-survive-reinstall' $TMP_HOME/settings.json"
+# Deliberate: the Agent allow-rule survives uninstall (we can't tell whether
+# we added it, and other tools may rely on it).
+expect "Agent allow-rule survives uninstall (deliberate)" \
+  "python3 -c 'import json,sys; sys.exit(0 if \"Agent\" in json.load(open(\"$TMP_HOME/settings.json\")).get(\"permissions\",{}).get(\"allow\",[]) else 1)'"
 
 # ─────────────────────────────────────────────────────────────────────
 echo ""
