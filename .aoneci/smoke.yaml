@@ -1,11 +1,11 @@
 # .aoneci/smoke.yaml
-# Runs tests/smoke-test.sh on every push and every opened MR.
+# Runs tests/smoke-test.sh on every push to main and every opened MR.
 # Syntax ref: https://aliyuque.antfin.com/aoneci/gncflv/zn9dhevbwby6715s
 name: smoke-test
 
 triggers:
   push:
-    branches: ['**']
+    branches: ['main']
   merge_request:
     target-branches: ['**']
 
@@ -44,4 +44,4 @@ jobs:
             -i https://mirrors.aliyun.com/pypi/simple/ \
             --trusted-host mirrors.aliyun.com \
             pyyaml Pillow
-          bash tests/smoke-test.sh
+          bash tests/smoke-test.sh --verbose
