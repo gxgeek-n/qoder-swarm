@@ -69,7 +69,7 @@ echo ""
 echo "=== Layer 1: model name validity (case-sensitive against --list-models) ==="
 echo ""
 
-MODELS=$("$QODER_CLI" --list-models 2>&1)
+MODELS=$("$QODER_CLI" --list-models 2>&1 | sed 's/ (.*)$//')
 
 for f in "$REPO_ROOT/agents/swarm-"*.md; do
   name=$(grep -m1 '^name:' "$f" | awk '{print $2}')

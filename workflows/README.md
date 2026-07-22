@@ -17,7 +17,7 @@
 ## 模型搭配（当前配置）
 
 ```javascript
-const CHEAP = 'Qwen3.7-Max-DogFooding'  // 0.00x - 搜索、只读、解析
+const CHEAP = 'Peach-07-17-DogFooding'  // 0.00x - 搜索、只读、解析
 const MID   = 'GLM-5.2'                 // 0.60x - 代码实现、QA
 const HEAVY = 'GLM-5.2'                 // 0.60x - 深度推理、审查
 ```

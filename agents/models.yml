@@ -1,0 +1,70 @@
+# Single source of truth for swarm-* subagent model bindings.
+#
+# Edit THIS file when the Qoder model catalog changes, then run:
+#   python3 scripts/sync-models.py            # validate + propagate everywhere
+#   python3 scripts/sync-models.py --check    # dry-run, non-zero exit on drift (CI)
+#   python3 scripts/sync-models.py --auto-fix # remap vanished models, then sync
+#
+# Propagates to: agents/swarm-*.md frontmatter (model:/fallback_models:),
+# ~/.qoder/agents/, README.md + skills/swarm/references/_shared.md tables,
+# scripts/swarm-cost-qoder.py (reads this file at runtime).
+#
+# Fields per role:
+#   model           primary model, must match `qodercli --list-models` exactly
+#   fallback_models ordered retry list (orchestrator honors on primary failure)
+#   cost            credit multiplier (see /model in TUI)
+#   why             one-line role summary used in generated doc tables
+
+swarm-explorer:
+  model: Peach-07-17-DogFooding
+  fallback_models: [GLM-5.2]
+  cost: 0.00
+  why: read-only codebase search
+
+swarm-librarian:
+  model: Peach-07-17-DogFooding
+  fallback_models: [GLM-5.2]
+  cost: 0.00
+  why: external docs/OSS research
+
+swarm-planner:
+  model: Kimi-K3
+  fallback_models: [GLM-5.2]
+  cost: 0.80
+  why: strategic planning
+
+swarm-reviewer:
+  model: Kimi-K3
+  fallback_models: [GLM-5.2]
+  cost: 0.80
+  why: adversarial review
+
+swarm-worker:
+  model: GLM-5.2
+  fallback_models: [Peach-07-17-DogFooding]
+  cost: 0.60
+  why: implementation (default)
+
+swarm-worker-glm:
+  model: GLM-5.2
+  fallback_models: [Peach-07-17-DogFooding]
+  cost: 0.60
+  why: GLM-pinned worker variant
+
+swarm-worker-qwen:
+  model: Peach-07-17-DogFooding
+  fallback_models: []
+  cost: 0.00
+  why: free-tier worker variant
+
+swarm-context-manager:
+  model: DeepSeek-V4-Flash
+  fallback_models: [Peach-07-17-DogFooding]
+  cost: 0.10
+  why: context window management
+
+swarm-error-coordinator:
+  model: DeepSeek-V4-Flash
+  fallback_models: [GLM-5.2]
+  cost: 0.10
+  why: error recovery

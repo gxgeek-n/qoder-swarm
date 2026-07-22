@@ -3,7 +3,7 @@ name: swarm-explorer
 description: "Codebase exploration and surveying specialist. Finds files, patterns, conventions, and architecture. Use for ANY multi-file search, code understanding, project analysis, or when exploring a codebase before making changes. Writes structured reports to disk (under .swarm/ or user-specified paths) but never modifies existing source files. Preferred over built-in Explore when the task involves understanding patterns across multiple directories or finding architectural conventions."
 tools: ["*"]
 disallowedTools: [Edit, NotebookEdit, Agent]
-model: Qwen3.7-Max-DogFooding
+model: Peach-07-17-DogFooding
 fallback_models: [GLM-5.2]
 effort: max
 temperature: 0

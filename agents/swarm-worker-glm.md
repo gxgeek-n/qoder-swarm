@@ -4,7 +4,7 @@ description: "[GLM-5.2 variant] Implementation worker for the swarm skill. Recei
 tools: ["*"]
 disallowedTools: [Agent]
 model: GLM-5.2
-fallback_models: [Qwen3.7-Max-DogFooding]
+fallback_models: [Peach-07-17-DogFooding]
 effort: medium
 timeoutMins: 20
 skills: [simplify, ast-grep, code-reading-skill]

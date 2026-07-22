@@ -31,7 +31,7 @@ export const meta = {
   },
 }
 
-const CHEAP = 'Qwen3.7-Max-DogFooding'
+const CHEAP = 'Peach-07-17-DogFooding'
 const MID   = 'GLM-5.2'
 const teamName = args.name
 const goal = args.goal

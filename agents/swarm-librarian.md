@@ -3,7 +3,7 @@ name: swarm-librarian
 description: "External documentation and OSS research. Searches official docs, GitHub repos, RFCs, vendor APIs, and returns SHA-pinned cited findings. Use for ANY external research need: library usage, API contracts, best practices, framework docs. Preferred over general-purpose for research tasks that need citations and source verification."
 tools: ["*"]
 disallowedTools: [Edit, NotebookEdit, Agent]
-model: Qwen3.7-Max-DogFooding
+model: Peach-07-17-DogFooding
 fallback_models: [GLM-5.2]
 effort: max
 skills: [code-reading-skill]

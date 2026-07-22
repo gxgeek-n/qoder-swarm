@@ -35,13 +35,13 @@ Qoder's `Agent` tool **does not accept a `model` parameter at call time**. Model
 
 | Role | subagent_type | Model | Effort | Tools | When to use |
 |------|--------------|-------|--------|-------|-------------|
-| Read-only codebase search | `swarm-explorer` | `Qwen3.7-Max-DogFooding` | `low` | Read/Grep/Glob/Bash/WebFetch | Exploration in plan-and-review, init-deep, debugging |
-| External docs/OSS research | `swarm-librarian` | `Qwen3.7-Max-DogFooding` | `low` | WebFetch/WebSearch/Bash | Research in plan-and-review, ultraresearch |
-| Strategic planning | `swarm-planner` | `ultimate` | `high` | Read/Write plan files only | Plan drafting in plan-and-review |
-| Adversarial review | `swarm-reviewer` | `ultimate` | `high` | Read-only inspection | Gap analysis, code review, plan review |
+| Read-only codebase search | `swarm-explorer` | `Peach-07-17-DogFooding` | `low` | Read/Grep/Glob/Bash/WebFetch | Exploration in plan-and-review, init-deep, debugging |
+| External docs/OSS research | `swarm-librarian` | `Peach-07-17-DogFooding` | `low` | WebFetch/WebSearch/Bash | Research in plan-and-review, ultraresearch |
+| Strategic planning | `swarm-planner` | `Kimi-K3` | `high` | Read/Write plan files only | Plan drafting in plan-and-review |
+| Adversarial review | `swarm-reviewer` | `Kimi-K3` | `high` | Read-only inspection | Gap analysis, code review, plan review |
 | Implementation worker | `swarm-worker` | `GLM-5.2` | `medium` | Read/Edit/Write/Bash | Worker dispatch in start-work, remove-ai-slops |
-| Context compression | `swarm-context-manager` | `DeepSeek-V4-Flash (0.10x)` | `low` | Read/Bash | Long-running loops, context overflow |
-| Error triage & recovery | `swarm-error-coordinator` | `DeepSeek-V4-Flash (0.10x)` | `medium` | Read/Bash | Worker failure classification, recovery routing |
+| Context compression | `swarm-context-manager` | `DeepSeek-V4-Flash` | `low` | Read/Bash | Long-running loops, context overflow |
+| Error triage & recovery | `swarm-error-coordinator` | `DeepSeek-V4-Flash` | `medium` | Read/Bash | Worker failure classification, recovery routing |
 
 These are the shipped defaults. Edit the `model:` field in the agent `.md` file or use `settings.json` overrides to customize.
 
@@ -62,16 +62,16 @@ When dispatching a worker, pick model based on task content:
 
 | Task type | Detected by | Model | Why |
 |-----------|------------|-------|-----|
-| doc-only | Files all match `*.md` AND description has no "implement"/"refactor" | `Qwen3.7-Max-DogFooding` (0.00x) | Free model, plenty good for grep+sed edits |
-| shell/yaml | Files include `.sh`/`.yaml`/`.yml` AND description involves <50 LOC | `Qwen3.7-Max-DogFooding` (0.00x) | Same — config edits don't need GLM |
+| doc-only | Files all match `*.md` AND description has no "implement"/"refactor" | `Peach-07-17-DogFooding` (0.00x) | Free model, plenty good for grep+sed edits |
+| shell/yaml | Files include `.sh`/`.yaml`/`.yml` AND description involves <50 LOC | `Peach-07-17-DogFooding` (0.00x) | Same — config edits don't need GLM |
 | code-edit | Files include `.py`/`.ts`/`.java`/`.go` OR description has "implement"/"refactor"/"new feature" | `GLM-5.2` (0.60x) | Default — code reasoning needs mid-tier |
-| complex-refactor | description has "breaking change" OR multi-file (>5 files) | `ultimate` (1.00x) | Heavy reasoning |
+| complex-refactor | description has "breaking change" OR multi-file (>5 files) | `Kimi-K3` (0.80x) | Heavy reasoning |
 
 How to apply: model is bound to the subagent's frontmatter (`model:` field). To use a different model for a doc-only task:
 
 **Option A (recommended)**: dispatch via `general-purpose` agent (default session model — typically a CHEAP-tier model in dogfooding configs) with `subagent_type: "general-purpose"`. This works for any text-edit task without needing a swarm-* worker.
 
-**Option B**: maintain a second worker definition (e.g., `agents/swarm-worker-<variant>.md` with `model: Qwen3.7-Max-DogFooding`) and dispatch with `subagent_type: "swarm-worker-doc"`.
+**Option B**: maintain a second worker definition (e.g., `agents/swarm-worker-<variant>.md` with `model: Peach-07-17-DogFooding`) and dispatch with `subagent_type: "swarm-worker-doc"`.
 
 **Option C**: configure user session to use a cheap model by default (settings.json model routing), so even `swarm-worker` runs cheap until explicit `effort: high` is requested.
 
@@ -81,12 +81,12 @@ This pattern shaves ~50-70% of worker costs in a typical 10-task plan where 5-6 
 
 ## How to control credit cost
 
-The models above range from cost-effective options (Qwen3.7-Max-DogFooding for explorer/librarian, GLM-5.2 for workers) to the premium ultimate model (planner/reviewer). To force different specific models, the user must:
+The models above range from cost-effective options (Peach-07-17-DogFooding for explorer/librarian, GLM-5.2 for workers) to premium deep-reasoning models (Kimi-K3 for planner/reviewer). To force different specific models, the user must:
 
 Option A — edit the agent file's `model:` field to a specific model name:
 ```yaml
 # ~/.qoder/agents/swarm-explorer.md
-model: Qwen3.7-Max-DogFooding
+model: Peach-07-17-DogFooding
 ```
 
 Option B — use `settings.json` overrides:
@@ -94,7 +94,7 @@ Option B — use `settings.json` overrides:
 {
   "agents": {
     "overrides": {
-      "swarm-explorer": { "modelConfig": { "model": "Qwen3.7-Max-DogFooding" } },
+      "swarm-explorer": { "modelConfig": { "model": "Peach-07-17-DogFooding" } },
       "swarm-planner":  { "modelConfig": { "model": "GLM-5.2" } }
     }
   }

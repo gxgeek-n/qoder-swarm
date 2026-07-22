@@ -1,9 +1,9 @@
 ---
 name: swarm-worker-qwen
-description: "[Qwen3.7-Max fallback] Implementation worker for the swarm skill. Receives one atomic task from the orchestrator, makes the smallest correct change, runs verification, reports evidence. Has full toolset for editing, running tests, calling skills/MCP. Use when the swarm skill's start-work pattern dispatches implementation tasks to parallel workers."
+description: "[Qwen DogFooding fallback] Implementation worker for the swarm skill. Receives one atomic task from the orchestrator, makes the smallest correct change, runs verification, reports evidence. Has full toolset for editing, running tests, calling skills/MCP. Use when the swarm skill's start-work pattern dispatches implementation tasks to parallel workers."
 tools: ["*"]
 disallowedTools: [Agent]
-model: Qwen3.7-Max-DogFooding
+model: Peach-07-17-DogFooding
 fallback_models: []
 effort: medium
 timeoutMins: 20
