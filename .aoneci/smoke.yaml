@@ -24,6 +24,19 @@ jobs:
           pip3 --version
           bash --version | head -n1
 
+      - id: model-bindings
+        run: |
+          set -euxo pipefail
+          if [ -f agents/models.yml ]; then
+            pip3 install --no-cache-dir \
+              -i https://mirrors.aliyun.com/pypi/simple/ \
+              --trusted-host mirrors.aliyun.com \
+              pyyaml
+            python3 scripts/sync-models.py --check
+          else
+            echo "agents/models.yml not present, skipping model-bindings check"
+          fi
+
       - id: smoke
         run: |
           set -euxo pipefail
