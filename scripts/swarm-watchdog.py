@@ -34,7 +34,11 @@ Detection only — never interrupts or resumes anything. Auto-recovery via
 
 Usage:
   swarm-watchdog.py [--threshold MIN] [--qoder-home DIR] [--notify] [--json]
-                    [--no-process-check]
+                    [--write-flag PATH] [--no-process-check]
+
+Cron pair for the UserPromptSubmit alert hook (hooks/swarm-hang-notifier.sh):
+  */10 * * * * python3 ~/.qoder/scripts/swarm-watchdog.py \
+      --write-flag /tmp/qoder-swarm-hang-alert.flag
 
 Exit code: number of stalled sessions (0 = none, 2 = usage error).
 """
@@ -161,12 +165,35 @@ def notify(stalled: list[dict]) -> None:
     subprocess.run(["osascript", "-e", script], check=False)
 
 
+def write_flag(path: str, stalled: list[dict]) -> None:
+    """Maintain the alert flag consumed by hooks/swarm-hang-notifier.sh.
+
+    Stalled sessions found  → (over)write one summary line per session.
+    Nothing stalled         → remove a stale flag so no outdated alert shows.
+    """
+    if not stalled:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+        return
+    lines = [
+        f"session={s['session']} silent={s['silent_min']}m "
+        f"pending={','.join(s['pending_tools'])} file={s['file']}"
+        for s in stalled
+    ]
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Detect stalled (fake-think) Qoder sessions")
     p.add_argument("--threshold", type=float, default=30, help="silence threshold in minutes (default: 30)")
     p.add_argument("--qoder-home", default=os.path.expanduser("~/.qoder"))
     p.add_argument("--notify", action="store_true", help="macOS notification when stalled sessions found")
     p.add_argument("--json", action="store_true", help="machine-readable output")
+    p.add_argument("--write-flag", metavar="PATH",
+                   help="write alert flag for swarm-hang-notifier.sh (cron use); removed when clean")
     p.add_argument("--no-process-check", action="store_true",
                    help="skip the qodercli-alive check (testing, cron on remote hosts)")
     args = p.parse_args()
@@ -177,6 +204,9 @@ def main() -> int:
         stalled: list[dict] = []
     else:
         stalled = find_stalled(args.qoder_home, args.threshold, process_start)
+
+    if args.write_flag:
+        write_flag(args.write_flag, stalled)
 
     if args.json:
         print(json.dumps(stalled, indent=2))

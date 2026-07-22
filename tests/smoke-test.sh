@@ -115,8 +115,8 @@ echo ""
 echo "[3/8] Verify file layout"
 # ─────────────────────────────────────────────────────────────────────
 expect "workflows/ has 10 .mjs"        "[ \$(ls $TMP_HOME/workflows/*.mjs 2>/dev/null | wc -l) -eq 10 ]"
-expect "hooks/ has 2 swarm-*.sh"       "[ \$(ls $TMP_HOME/hooks/swarm-*.sh 2>/dev/null | wc -l) -eq 2 ]"
-expect "hooks are executable"          "[ -x $TMP_HOME/hooks/swarm-comment-checker.sh ] && [ -x $TMP_HOME/hooks/swarm-stop-continuation.sh ]"
+expect "hooks/ has 3 swarm-*.sh"       "[ \$(ls $TMP_HOME/hooks/swarm-*.sh 2>/dev/null | wc -l) -eq 3 ]"
+expect "hooks are executable"          "[ -x $TMP_HOME/hooks/swarm-comment-checker.sh ] && [ -x $TMP_HOME/hooks/swarm-stop-continuation.sh ] && [ -x $TMP_HOME/hooks/swarm-hang-notifier.sh ]"
 expect "scripts/image-diff.py present" "[ -f $TMP_HOME/scripts/image-diff.py ]"
 expect "scripts/image-diff.py exec"    "[ -x $TMP_HOME/scripts/image-diff.py ]"
 expect "scripts/truncate.sh present"      "[ -f $TMP_HOME/scripts/truncate.sh ]"
@@ -184,6 +184,8 @@ expect "Stop hook points to tmpdir" \
 # matchers (PreToolUse Agent hooks).
 expect "permissions.allow contains Agent rule" \
   "python3 -c 'import json,sys; sys.exit(0 if \"Agent\" in json.load(open(\"$TMP_HOME/settings.json\")).get(\"permissions\",{}).get(\"allow\",[]) else 1)'"
+expect "UserPromptSubmit registers swarm-hang-notifier.sh" \
+  "grep -q 'swarm-hang-notifier.sh' $TMP_HOME/settings.json"
 
 # ─────────────────────────────────────────────────────────────────────
 echo ""
@@ -389,7 +391,32 @@ expect "watchdog: stalled output prints STALLED" \
   "{ python3 $WD --qoder-home $WD_FIX/stalled --threshold 30 --no-process-check 2>/dev/null || true; } | grep -q STALLED"
 expect "watchdog: idle/human-wait/fresh/healthy-worker sessions not flagged" \
   "python3 $WD --qoder-home $WD_FIX/clean --threshold 30 --no-process-check >/dev/null 2>&1"
-rm -rf "$WD_FIX"
+
+# --write-flag: alert flag for the UserPromptSubmit notifier hook.
+WFLAG="$TMP_HOME/test-hang.flag"
+expect "watchdog --write-flag: stalled writes flag with session id" \
+  "python3 $WD --qoder-home $WD_FIX/stalled --threshold 30 --no-process-check --write-flag $WFLAG >/dev/null 2>&1; grep -q 'session=s1' $WFLAG"
+echo "stale content" > "$WFLAG"
+expect "watchdog --write-flag: clean removes stale flag" \
+  "python3 $WD --qoder-home $WD_FIX/clean --threshold 30 --no-process-check --write-flag $WFLAG >/dev/null 2>&1 && [ ! -f $WFLAG ]"
+rm -rf "$WD_FIX" "$WFLAG"
+
+# ─────────────────────────────────────────────────────────────────────
+echo ""
+echo "[7.7/8] swarm-hang-notifier.sh UserPromptSubmit hook"
+# ─────────────────────────────────────────────────────────────────────
+NOTIFIER="$TMP_HOME/hooks/swarm-hang-notifier.sh"
+NFLAG="$TMP_HOME/test-notify.flag"
+# Flag present → systemMessage on stdout, flag deleted, exit 0.
+echo "session=abc silent=45m pending=Agent" > "$NFLAG"
+expect "notifier: flag present → systemMessage emitted" \
+  "echo '{}' | SWARM_HANG_FLAG=$NFLAG bash $NOTIFIER 2>/dev/null | grep -q systemMessage"
+expect "notifier: flag deleted after display (one-shot)" \
+  "[ ! -f $NFLAG ]"
+# Flag absent → silent, exit 0.
+expect "notifier: no flag → silent pass-through" \
+  "[ -z \"\$(echo '{}' | SWARM_HANG_FLAG=$NFLAG bash $NOTIFIER 2>/dev/null)\" ]"
+rm -f "$NFLAG"
 
 # ─────────────────────────────────────────────────────────────────────
 echo ""
@@ -400,6 +427,8 @@ expect "swarm-comment-checker hook removed" \
   "! grep -q 'swarm-comment-checker.sh' $TMP_HOME/settings.json"
 expect "swarm-stop-continuation hook removed" \
   "! grep -q 'swarm-stop-continuation.sh' $TMP_HOME/settings.json"
+expect "swarm-hang-notifier hook removed" \
+  "! grep -q 'swarm-hang-notifier.sh' $TMP_HOME/settings.json"
 expect "user-hook still present after uninstall" \
   "grep -q 'user-hook' $TMP_HOME/settings.json"
 expect "user customField still present after uninstall" \

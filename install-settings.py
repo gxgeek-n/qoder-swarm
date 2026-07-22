@@ -72,6 +72,11 @@ SWARM_HOOKS = {
             "script": "keyword-detector.py",
             "timeout": 5,
         },
+        {
+            "matcher": "*",
+            "script": "swarm-hang-notifier.sh",
+            "timeout": 5,
+        },
     ],
     "SessionStart": [
         {
