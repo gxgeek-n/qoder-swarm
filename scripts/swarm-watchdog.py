@@ -18,6 +18,12 @@ A session is STALLED when all of these hold:
 Sessions waiting on user-interactive tools (AskUserQuestion, ExitPlanMode)
 are excluded: pending-on-human is not a hang.
 
+Co-silence rule for Agent dispatches: when the pending tool is Agent and
+open sub-agent transcripts exist, at least one sub-agent must ALSO be
+silent past the threshold. A sub-agent still writing is a live worker —
+the main session is merely blocked on the join, and a healthy 40-min
+worker must not be flagged.
+
 Why not scan sub-agent transcripts directly: their terminal state is
 unreliable — final answers often lack stop_reason and `last-prompt` is only
 written when the parent session closes. The parent transcript's
@@ -113,12 +119,19 @@ def find_stalled(qoder_home: str, threshold_min: float,
         tools = pending_tools(rec)
         if not tools or set(tools) <= INTERACTIVE_TOOLS:
             continue
+        subs = open_subagents(sess, now)
+        if "Agent" in tools and subs and all(
+                a["silent_min"] < threshold_min for a in subs):
+            # Every open sub-agent transcript is still being written: the
+            # workers are alive, the main session is just blocked on the
+            # join. A healthy long worker is not a hang.
+            continue
         stalled.append({
             "session": os.path.basename(sess)[: -len(".jsonl")],
             "file": sess,
             "silent_min": round(age_min, 1),
             "pending_tools": tools,
-            "subagents": open_subagents(sess, now),
+            "subagents": subs,
         })
     return stalled
 

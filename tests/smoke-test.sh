@@ -351,9 +351,10 @@ echo ""
 echo "[7.6/8] swarm-watchdog.py stall detection"
 # ─────────────────────────────────────────────────────────────────────
 # Fixtures: "stalled" dir holds one hung Agent dispatch (assistant tool_use,
-# silent 2h). "clean" dir holds the three states that must NOT be flagged:
-# an idle session, a human-wait session (AskUserQuestion), and a fresh
-# dispatch still under the silence threshold.
+# silent 2h, sub-agent also silent 2h). "clean" dir holds the states that
+# must NOT be flagged: idle session, human-wait (AskUserQuestion), fresh
+# dispatch under threshold, and a healthy long worker (parent pending 2h
+# but sub-agent transcript still being written).
 WD_FIX="$TMP_HOME/wd-fixtures"
 mkdir -p "$WD_FIX/stalled/projects/p" "$WD_FIX/clean/projects/p"
 python3 - "$WD_FIX" <<'EOF'
@@ -364,20 +365,29 @@ def put(d, name, rec, age_min):
     open(p, "w").write(json.dumps(rec) + "\n")
     t = time.time() - age_min * 60
     os.utime(p, (t, t))
+def put_sub(d, sess, name, age_min):
+    p = os.path.join(base, d, "projects", "p", sess[:-len(".jsonl")], "subagents", name)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    open(p, "w").write(json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "working"}]}}) + "\n")
+    t = time.time() - age_min * 60
+    os.utime(p, (t, t))
 agent_call = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Agent", "input": {}}]}}
 ask_call = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "AskUserQuestion", "input": {}}]}}
 idle = {"type": "assistant", "message": {"content": [{"type": "text", "text": "done"}]}}
 put("stalled", "s1.jsonl", agent_call, 120)
+put_sub("stalled", "s1.jsonl", "agent-dead.jsonl", 120)
 put("clean", "c1.jsonl", idle, 120)
 put("clean", "c2.jsonl", ask_call, 120)
 put("clean", "c3.jsonl", agent_call, 1)
+put("clean", "c4.jsonl", agent_call, 120)
+put_sub("clean", "c4.jsonl", "agent-live.jsonl", 0)
 EOF
 WD="$TMP_HOME/scripts/swarm-watchdog.py"
 expect "watchdog: stalled Agent dispatch flagged (exit 1)" \
   "python3 $WD --qoder-home $WD_FIX/stalled --threshold 30 --no-process-check >/dev/null 2>&1; [ \$? -eq 1 ]"
 expect "watchdog: stalled output prints STALLED" \
   "{ python3 $WD --qoder-home $WD_FIX/stalled --threshold 30 --no-process-check 2>/dev/null || true; } | grep -q STALLED"
-expect "watchdog: idle/human-wait/fresh sessions not flagged" \
+expect "watchdog: idle/human-wait/fresh/healthy-worker sessions not flagged" \
   "python3 $WD --qoder-home $WD_FIX/clean --threshold 30 --no-process-check >/dev/null 2>&1"
 rm -rf "$WD_FIX"
 
