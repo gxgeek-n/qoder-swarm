@@ -5,11 +5,11 @@
 # channel, never enters model context, never blocks the prompt (always exit 0).
 # One-shot: the flag is deleted on display.
 #
-# The flag content — including per-session action (sigint-sent / escalate)
-# and recovery guidance — is authored by swarm-watchdog.py; this hook only
-# relays it verbatim. With --auto-soft the watchdog may already have sent
-# SIGINT (≈ Esc); the flag text says so. Recovery is a human decision:
-# this hook never kills, signals, or resumes anything itself.
+# The flag content — per-session host window (tty) when uniquely resolved,
+# plus recovery guidance — is authored by swarm-watchdog.py; this hook only
+# relays it verbatim. Recovery is a human decision (Esc in the named
+# window): the watchdog and this hook never kill, signal, or resume
+# anything (verified 2026-07-23: external SIGINT kills the qodercli TUI).
 FLAG_FILE="${SWARM_HANG_FLAG:-/tmp/qoder-swarm-hang-alert.flag}"
 
 if [ -f "$FLAG_FILE" ]; then

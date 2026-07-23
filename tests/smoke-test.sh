@@ -420,20 +420,21 @@ rm -f "$NFLAG"
 
 # ─────────────────────────────────────────────────────────────────────
 echo ""
-echo "[7.8/8] swarm-watchdog.py --auto-soft (SIGINT ≈ Esc, cooldown-guarded)"
+echo "[7.8/8] swarm-watchdog.py host location (names tty for manual Esc)"
 # ─────────────────────────────────────────────────────────────────────
-# Fake host CLI: a bash script whose cwd is the stalled session's project.
-# The watchdog must match it (cwd → slug direction), deliver exactly ONE
-# SIGINT, then escalate instead of re-signalling inside the cooldown.
-SOFT_FIX="$TMP_HOME/wd-soft"
-PROJ_DIR="$SOFT_FIX/real-proj"
+# Fake hosts: python sleep-loops under script(1), so each owns a pty and
+# ps -o tty= resolves. The watchdog must name a uniquely-bound host's tty
+# in the flag, refuse to guess when two windows share the project, and
+# treat a --resume <sid> cmdline as decisive. Read-only: no signals.
+LOC_FIX="$TMP_HOME/wd-locate"
+PROJ_DIR="$LOC_FIX/real-proj"
 mkdir -p "$PROJ_DIR"
 # lsof reports the PHYSICAL cwd (kernel vnode): /var → /private/var on macOS.
 # The watchdog matches cwd → slug, so the fixture slug must come from pwd -P.
 PROJ_DIR="$(cd "$PROJ_DIR" && pwd -P)"
 SLUG="$(echo "$PROJ_DIR" | tr '/' '-')"
-mkdir -p "$SOFT_FIX/projects/$SLUG"
-python3 - "$SOFT_FIX" "$SLUG" <<'EOF'
+mkdir -p "$LOC_FIX/projects/$SLUG"
+python3 - "$LOC_FIX" "$SLUG" <<'EOF'
 import json, os, sys, time
 base, slug = sys.argv[1], sys.argv[2]
 sess = os.path.join(base, "projects", slug, "s1.jsonl")
@@ -446,83 +447,33 @@ t = time.time() - 120 * 60
 os.utime(sess, (t, t))
 os.utime(sub, (t, t))
 EOF
-FAKE="$SOFT_FIX/swarm-fake-qoder.py"
-cat > "$FAKE" <<EOF
-import signal, time
-def on_int(signum, frame):
-    with open("$SOFT_FIX/sigint.log", "a") as f:
-        f.write("int\n")
-# Explicit handler: background children of a non-interactive shell inherit
-# SIGINT as SIG_IGN, and a bash trap cannot override that. signal.signal can.
-signal.signal(signal.SIGINT, on_int)
-while True:
-    time.sleep(1)
-EOF
-(cd "$PROJ_DIR" && exec python3 "$FAKE") &
-FAKE_PID=$!
-sleep 1
-SFLAG="$SOFT_FIX/hang.flag"
-SOFT_RUN="python3 $WD --qoder-home $SOFT_FIX --threshold 30 --no-process-check --proc-regex swarm-fake-qoder --auto-soft --write-flag $SFLAG"
-expect "auto-soft: stalled session flagged (exit 1)" \
-  "$SOFT_RUN >/dev/null 2>&1; [ \$? -eq 1 ]"
-# trap fires once the fake host's current sleep returns — allow a moment
-for i in 1 2 3 4 5 6; do [ -f "$SOFT_FIX/sigint.log" ] && break; sleep 1; done
-expect "auto-soft: fake host received exactly one SIGINT" \
-  "[ \$(wc -l < $SOFT_FIX/sigint.log 2>/dev/null | tr -d ' ') = 1 ]"
-expect "auto-soft: flag reports sigint-sent with host pid" \
-  "grep -q 'action=sigint-sent(pid=$FAKE_PID' $SFLAG"
-expect "auto-soft: flag carries continue-guidance" \
-  "grep -q '继续' $SFLAG"
-expect "auto-soft: state file records sigint_at" \
-  "python3 -c 'import json;print(json.load(open(\"$SOFT_FIX/cache/swarm-watchdog-state.json\"))[\"s1\"][\"sigint_at\"])' | grep -q '^[0-9]'"
-expect "auto-soft: rerun inside cooldown escalates instead of re-signalling" \
-  "$SOFT_RUN >/dev/null 2>&1; grep -q 'action=escalate' $SFLAG"
+# Script name must contain the --proc-regex token: pgrep -f matches cmdline.
+printf 'import time\ntime.sleep(600)\n' > "$LOC_FIX/swarm-fake-qoder.py"
+FAKE="$LOC_FIX/swarm-fake-qoder.py"
+LFLAG="$LOC_FIX/hang.flag"
+LOC_RUN="python3 $WD --qoder-home $LOC_FIX --threshold 30 --no-process-check --proc-regex swarm-fake-qoder --write-flag $LFLAG"
+# script(1) gives each fake its own controlling pty; the sleep pipe keeps
+# script's stdin open so it outlives the fake.
+( cd "$PROJ_DIR" && sleep 60 | script -q /dev/null python3 "$FAKE" >/dev/null 2>&1 & )
 sleep 2
-expect "auto-soft: no second SIGINT during cooldown" \
-  "[ \$(wc -l < $SOFT_FIX/sigint.log | tr -d ' ') = 1 ]"
-kill "$FAKE_PID" 2>/dev/null
-wait "$FAKE_PID" 2>/dev/null
-
-# ─── host binding: ambiguity must NOT signal, --resume sid must hit ───
-# Fake hosts share the same project cwd. With two plain candidates the
-# watchdog must refuse to guess (fail-safe); adding a --resume <sid>
-# cmdline alongside a plain one is decisive and must hit exactly that one.
-rm -f "$SOFT_FIX/cache/swarm-watchdog-state.json"
-# Script name must contain the --proc-regex token: pgrep -f matches the full
-# cmdline, and fake hosts are discovered by that regex.
-cat > "$SOFT_FIX/swarm-fake-qoder-2.py" <<EOF
-import signal, sys, time
-def on_int(signum, frame):
-    with open(sys.argv[1], "a") as f:
-        f.write("int\n")
-signal.signal(signal.SIGINT, on_int)
-while True:
-    time.sleep(1)
-EOF
-(cd "$PROJ_DIR" && exec python3 "$SOFT_FIX/swarm-fake-qoder-2.py" "$SOFT_FIX/sigint-a.log") &
-PID_A=$!
-(cd "$PROJ_DIR" && exec python3 "$SOFT_FIX/swarm-fake-qoder-2.py" "$SOFT_FIX/sigint-b.log") &
-PID_B=$!
-sleep 1
-expect "binding: ambiguous hosts → fail-safe, zero signals" \
-  "$SOFT_RUN >/dev/null 2>&1; grep -q 'action=host-ambiguous' $SFLAG && [ ! -f $SOFT_FIX/sigint-a.log ] && [ ! -f $SOFT_FIX/sigint-b.log ]"
-expect "binding: ambiguous flag carries manual guidance" \
-  "grep -q '多个 qodercli 窗口' $SFLAG"
-# Swap B for a --resume <sid> host: candidates {A plain, C resumed} → C decisive.
-kill "$PID_B" 2>/dev/null; wait "$PID_B" 2>/dev/null
-(cd "$PROJ_DIR" && exec python3 "$SOFT_FIX/swarm-fake-qoder-2.py" "$SOFT_FIX/sigint-c.log" -r s1) &
-PID_C=$!
-sleep 1
-expect "binding: --resume <sid> hits exactly that host" \
-  "$SOFT_RUN >/dev/null 2>&1; grep -q \"action=sigint-sent(pid=$PID_C\" $SFLAG"
-for i in 1 2 3 4 5 6; do [ -f "$SOFT_FIX/sigint-c.log" ] && break; sleep 1; done
-expect "binding: resumed host received the SIGINT" \
-  "[ \$(wc -l < $SOFT_FIX/sigint-c.log 2>/dev/null | tr -d ' ') = 1 ]"
-expect "binding: plain host untouched" \
-  "[ ! -f $SOFT_FIX/sigint-a.log ]"
-kill "$PID_A" "$PID_C" 2>/dev/null
-wait "$PID_A" "$PID_C" 2>/dev/null
-rm -rf "$SOFT_FIX"
+expect "locate: unique host's tty named in flag" \
+  "$LOC_RUN >/dev/null 2>&1; grep -q 'host=ttys' $LFLAG"
+expect "locate: flag carries Esc-to-window guidance" \
+  "grep -q '窗口已定位' $LFLAG"
+# Second window on the same project → ambiguous: fail safe, no tty named.
+( cd "$PROJ_DIR" && sleep 60 | script -q /dev/null python3 "$FAKE" >/dev/null 2>&1 & )
+sleep 2
+expect "locate: two same-project windows → ambiguous, no tty named" \
+  "$LOC_RUN >/dev/null 2>&1; grep -q 'host=ambiguous' $LFLAG && ! grep -q 'host=ttys' $LFLAG"
+expect "locate: ambiguous flag carries manual guidance" \
+  "grep -q '多个 qodercli 窗口' $LFLAG"
+# A --resume <sid> cmdline alongside plain ones is decisive.
+( cd "$PROJ_DIR" && sleep 60 | script -q /dev/null python3 "$FAKE" -r s1 >/dev/null 2>&1 & )
+sleep 2
+expect "locate: --resume <sid> resolves unique host among three" \
+  "$LOC_RUN >/dev/null 2>&1; grep -q 'host=ttys' $LFLAG"
+pkill -f swarm-fake-qoder 2>/dev/null
+rm -rf "$LOC_FIX"
 
 # ─────────────────────────────────────────────────────────────────────
 echo ""

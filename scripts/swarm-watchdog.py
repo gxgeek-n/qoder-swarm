@@ -29,23 +29,26 @@ unreliable — final answers often lack stop_reason and `last-prompt` is only
 written when the parent session closes. The parent transcript's
 "tool_use dispatched, no tool_result" signature is precise.
 
-Detection is read-only by default. With --auto-soft, a confirmed stall gets
-ONE SIGINT delivered to the hosting CLI — the equivalent of pressing Esc in
-that window: the TUI survives, only the hung model call is interrupted. A
-per-session cooldown (--soft-cooldown-min, default 120min) prevents repeat
-interrupts; a session still hung after its SIGINT is escalated in the flag
-message instead of being signalled again. SIGTERM / `qodercli -p --resume`
-hard recovery is deliberately NOT wired in: killing a TUI host destroys the
-user's window. State lives in <qoder-home>/cache/swarm-watchdog-state.json.
+Auto-recovery is deliberately ABSENT. Every remote-interrupt mechanism
+was tested on 2026-07-23 against a live throwaway qodercli TUI:
+  * SIGINT to the host pid      → TUI process DIES. In raw-mode stdin,
+    Ctrl-C/Esc reach the app as input BYTES, not signals, so no SIGINT
+    handler is installed and the default disposition kills the process.
+  * write ESC to /dev/ttysNNN   → lands on the OUTPUT path (toward the
+    pty master); the TUI's stdin never sees it. Harmless, useless.
+  * TIOCSTI ioctl (fake input)  → EPERM on macOS for other sessions.
+Instead, a confirmed stall is RESOLVED to its hosting window and the
+alert names the tty: --resume/-r <sid> cmdline → st_birthtime pruning
+→ fail-safe refusal when ≥2 same-project windows remain. Manual Esc in
+the named window is then a 10-second action.
 
 Usage:
   swarm-watchdog.py [--threshold MIN] [--qoder-home DIR] [--notify] [--json]
-                    [--write-flag PATH] [--no-process-check]
-                    [--auto-soft] [--soft-cooldown-min MIN] [--proc-regex RE]
+                    [--write-flag PATH] [--no-process-check] [--proc-regex RE]
 
 Cron pair for the UserPromptSubmit alert hook (hooks/swarm-hang-notifier.sh):
   */10 * * * * python3 ~/.qoder/scripts/swarm-watchdog.py \
-      --write-flag /tmp/qoder-swarm-hang-alert.flag --auto-soft
+      --write-flag /tmp/qoder-swarm-hang-alert.flag
 
 Exit code: number of stalled sessions (0 = none, 2 = usage error).
 """
@@ -56,7 +59,6 @@ import glob
 import json
 import os
 import re
-import signal
 import subprocess
 import sys
 import time
@@ -164,17 +166,21 @@ def oldest_qodercli_start() -> float | None:
     return time.time() - max(ages)
 
 
-def find_host_pid(sess_file: str, proc_regex: str) -> tuple[str, int, bool]:
-    """Locate the CLI hosting this session. Returns (status, pid, is_print):
-      ("ok", pid, is_print)  — uniquely bound
-      ("ambiguous", n, _)    — n > 1 same-project candidates, none decisive
-      ("none", 0, _)         — no live CLI matches the project dir
+def locate_host(sess_file: str, proc_regex: str) -> tuple[str, int, str]:
+    """Locate the terminal window hosting this session. Returns (status, pid, tty):
+      ("ok", pid, tty)     — uniquely bound; tty = its controlling terminal
+      ("ambiguous", n, "") — n > 1 same-project candidates, none decisive
+      ("none", 0, "")      — no live CLI matches the project dir
 
     Binding chain (decisive first):
       1. cmdline carries `--resume/-r <session-id>` → direct hit
       2. exactly one candidate after pruning those started AFTER the
          session file was created (st_birthtime) → unique host
-      3. otherwise ambiguous — fail safe, never signal a guess
+      3. otherwise ambiguous — fail safe, never name a guess
+
+    Candidates must own a controlling terminal: pty wrappers (script(1),
+    tmux) share the child's cmdline and cwd but hold no tty of their own,
+    and a host without a window cannot be named anyway.
 
     A session's projects-dir name is the host cwd with '/' → '-'. Match in
     the cwd → slug direction: slug → cwd is ambiguous for directory names
@@ -187,7 +193,7 @@ def find_host_pid(sess_file: str, proc_regex: str) -> tuple[str, int, bool]:
     r = subprocess.run(["pgrep", "-f", proc_regex],
                        capture_output=True, text=True)
     if r.returncode != 0:
-        return ("none", 0, False)
+        return ("none", 0, "")
     try:
         born = os.stat(sess_file).st_birthtime
     except (AttributeError, OSError):
@@ -201,14 +207,19 @@ def find_host_pid(sess_file: str, proc_regex: str) -> tuple[str, int, bool]:
         cwd = next((l[1:] for l in lo.stdout.splitlines() if l.startswith("n")), "")
         if not cwd or cwd.rstrip("/").replace("/", "-") != slug:
             continue
+        tty = subprocess.run(["ps", "-o", "tty=", "-p", pid_s],
+                             capture_output=True, text=True).stdout.strip()
+        if tty in ("", "?", "??"):
+            continue
         cmd = subprocess.run(["ps", "-o", "command=", "-p", pid_s],
                              capture_output=True, text=True).stdout.strip()
         et = subprocess.run(["ps", "-o", "etimes=", "-p", pid_s],
                             capture_output=True, text=True).stdout.strip()
         start = time.time() - (int(et) if et.isdigit() else 0)
-        candidates.append({"pid": int(pid_s), "cmd": cmd, "start": start})
+        candidates.append({"pid": int(pid_s), "cmd": cmd, "start": start,
+                           "tty": tty})
     if not candidates:
-        return ("none", 0, False)
+        return ("none", 0, "")
     direct = [c for c in candidates
               if re.search(r"(?:--resume[=\s]|-r\s)" + re.escape(sid) + r"(?![\w-])",
                            c["cmd"])]
@@ -218,53 +229,24 @@ def find_host_pid(sess_file: str, proc_regex: str) -> tuple[str, int, bool]:
         if viable:
             pool = viable
     if len(pool) > 1:
-        return ("ambiguous", len(pool), False)
+        return ("ambiguous", len(pool), "")
     c = pool[0]
-    is_print = " -p " in f" {c['cmd']} " or "--print" in c["cmd"]
-    return ("ok", c["pid"], is_print)
+    return ("ok", c["pid"], c["tty"])
 
 
-def apply_auto_soft(stalled: list[dict], qoder_home: str, proc_regex: str,
-                    cooldown_min: float) -> None:
-    """Annotate each stalled session with an `action`, sending at most one
-    SIGINT (≈ Esc) per session per cooldown window. Never SIGTERMs."""
-    now = time.time()
-    spath = os.path.join(qoder_home, "cache", "swarm-watchdog-state.json")
-    try:
-        with open(spath) as f:
-            state = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        state = {}
+def locate_hosts(stalled: list[dict], proc_regex: str) -> None:
+    """Annotate each stalled session with the window hosting it (`host`).
+    Read-only: never signals, never writes to the host's tty — every
+    remote-interrupt mechanism is either fatal or denied (module docstring),
+    so recovery stays a manual Esc in the named window."""
     for s in stalled:
-        sid = s["session"]
-        last = state.get(sid, {}).get("sigint_at", 0)
-        if now - last < cooldown_min * 60:
-            s["action"] = "escalate(auto-Esc已发仍卡住)"
-            continue
-        status, val, is_print = find_host_pid(s["file"], proc_regex)
-        if status == "none":
-            s["action"] = "host-not-found"
-            continue
-        if status == "ambiguous":
-            s["action"] = f"host-ambiguous({val}个同项目窗口)"
-            continue
-        pid = val
-        try:
-            os.kill(pid, signal.SIGINT)
-        except OSError as exc:
-            s["action"] = f"sigint-failed({exc.strerror or exc})"
-            continue
-        state[sid] = {"sigint_at": now}
-        s["action"] = f"sigint-sent(pid={pid},mode={'print' if is_print else 'tui'})"
-    live = {s["session"] for s in stalled}
-    state = {k: v for k, v in state.items()
-             if k in live or now - v.get("sigint_at", 0) < 86400}
-    try:
-        os.makedirs(os.path.dirname(spath), exist_ok=True)
-        with open(spath, "w") as f:
-            json.dump(state, f)
-    except OSError:
-        pass
+        status, val, tty = locate_host(s["file"], proc_regex)
+        if status == "ok":
+            s["host"] = f"{tty} pid={val}"
+        elif status == "ambiguous":
+            s["host"] = f"ambiguous({val}个同项目窗口)"
+        else:
+            s["host"] = "not-found"
 
 
 def notify(stalled: list[dict]) -> None:
@@ -293,20 +275,20 @@ def write_flag(path: str, stalled: list[dict]) -> None:
     for s in stalled:
         line = (f"session={s['session']} silent={s['silent_min']}m "
                 f"pending={','.join(s['pending_tools'])} file={s['file']}")
-        if s.get("action"):
-            line += f" action={s['action']}"
+        if s.get("host"):
+            line += f" host={s['host']}"
         lines.append(line)
-    actions = {s.get("action", "") for s in stalled}
-    if any(a.startswith("sigint-sent") for a in actions):
-        lines.append("已自动按 Esc (SIGINT): 切到该会话输入「继续」或重新派发任务即可, TUI 未受影响。")
-    if any(a.startswith("escalate") for a in actions):
-        lines.append("自动 Esc 后仍卡住: 需手动处理 (到该会话按 Esc 后重开窗口/重派任务)。")
-    if any(a.startswith("host-ambiguous") for a in actions):
-        lines.append("同项目开了多个 qodercli 窗口, 无法确定挂死宿主, 未自动中断: "
-                     "请按 file= 路径找到对应会话窗口手动按 Esc。")
-    if any(a == "host-not-found" or a.startswith("sigint-failed") for a in actions):
-        lines.append("未能自动中断 (宿主进程未找到/信号失败): 请手动检查该会话窗口。")
-    if all(not a for a in actions):
+    hosts = {s.get("host", "") for s in stalled}
+    if any(h.startswith("ttys") for h in hosts):
+        lines.append("窗口已定位: 到 host= 对应 tty 的窗口按 Esc 中断挂起的调用, "
+                     "再输入「继续」或重派任务。")
+    if any(h.startswith("ambiguous") for h in hosts):
+        lines.append("同项目开了多个 qodercli 窗口, 无法确定挂死宿主: "
+                     "按 file= 路径对照找到该会话的窗口, 手动按 Esc。")
+    if any(h == "not-found" for h in hosts):
+        lines.append("未找到宿主窗口(可能已关闭): 重开终端执行 "
+                     "qodercli --resume 恢复对应会话。")
+    if all(not h for h in hosts):
         lines.append("处理: 到对应会话按 Esc 中断挂起的调用, 然后把任务重新派发给新 agent (不要等旧的)。")
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
@@ -322,11 +304,6 @@ def main() -> int:
                    help="write alert flag for swarm-hang-notifier.sh (cron use); removed when clean")
     p.add_argument("--no-process-check", action="store_true",
                    help="skip the qodercli-alive check (testing, cron on remote hosts)")
-    p.add_argument("--auto-soft", action="store_true",
-                   help="send ONE SIGINT (≈ Esc) to the stalled session's host CLI; "
-                        "cooldown-guarded, escalates instead of repeating. Never SIGTERMs")
-    p.add_argument("--soft-cooldown-min", type=float, default=120,
-                   help="minutes before a session may be SIGINTed again (default: 120)")
     p.add_argument("--proc-regex", default=os.environ.get("SWARM_WATCHDOG_PROC_REGEX", "qodercli"),
                    help="pgrep -f pattern for host CLIs (default: qodercli; "
                         "env SWARM_WATCHDOG_PROC_REGEX, override for testing)")
@@ -339,9 +316,8 @@ def main() -> int:
     else:
         stalled = find_stalled(args.qoder_home, args.threshold, process_start)
 
-    if args.auto_soft and stalled:
-        apply_auto_soft(stalled, args.qoder_home, args.proc_regex,
-                        args.soft_cooldown_min)
+    if stalled:
+        locate_hosts(stalled, args.proc_regex)
 
     if args.write_flag:
         write_flag(args.write_flag, stalled)
@@ -351,9 +327,9 @@ def main() -> int:
     else:
         for s in stalled:
             subs = ", ".join(f"{a['agent']}({a['silent_min']}m)" for a in s["subagents"]) or "n/a"
-            action = f" action={s['action']}" if s.get("action") else ""
+            host = f" host={s['host']}" if s.get("host") else ""
             print(f"STALLED session={s['session']} silent={s['silent_min']}m "
-                  f"pending={','.join(s['pending_tools'])} subagents: {subs}{action}")
+                  f"pending={','.join(s['pending_tools'])} subagents: {subs}{host}")
         if stalled:
             print("Hint: a hung stream does not recover. Interrupt the session, "
                   "then re-dispatch the task as a fresh agent.", file=sys.stderr)
