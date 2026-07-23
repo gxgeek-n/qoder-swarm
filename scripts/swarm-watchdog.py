@@ -29,16 +29,23 @@ unreliable — final answers often lack stop_reason and `last-prompt` is only
 written when the parent session closes. The parent transcript's
 "tool_use dispatched, no tool_result" signature is precise.
 
-Detection only — never interrupts or resumes anything. Auto-recovery via
-`qodercli -p --resume <id>` is deliberately not wired in.
+Detection is read-only by default. With --auto-soft, a confirmed stall gets
+ONE SIGINT delivered to the hosting CLI — the equivalent of pressing Esc in
+that window: the TUI survives, only the hung model call is interrupted. A
+per-session cooldown (--soft-cooldown-min, default 120min) prevents repeat
+interrupts; a session still hung after its SIGINT is escalated in the flag
+message instead of being signalled again. SIGTERM / `qodercli -p --resume`
+hard recovery is deliberately NOT wired in: killing a TUI host destroys the
+user's window. State lives in <qoder-home>/cache/swarm-watchdog-state.json.
 
 Usage:
   swarm-watchdog.py [--threshold MIN] [--qoder-home DIR] [--notify] [--json]
                     [--write-flag PATH] [--no-process-check]
+                    [--auto-soft] [--soft-cooldown-min MIN] [--proc-regex RE]
 
 Cron pair for the UserPromptSubmit alert hook (hooks/swarm-hang-notifier.sh):
   */10 * * * * python3 ~/.qoder/scripts/swarm-watchdog.py \
-      --write-flag /tmp/qoder-swarm-hang-alert.flag
+      --write-flag /tmp/qoder-swarm-hang-alert.flag --auto-soft
 
 Exit code: number of stalled sessions (0 = none, 2 = usage error).
 """
@@ -48,6 +55,7 @@ import argparse
 import glob
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -155,6 +163,80 @@ def oldest_qodercli_start() -> float | None:
     return time.time() - max(ages)
 
 
+def find_host_pid(sess_file: str, proc_regex: str) -> tuple[int, bool] | None:
+    """(pid, is_print_mode) of the CLI hosting this session, None if not found.
+
+    A session's projects-dir name is the host cwd with '/' → '-'. Match in
+    the cwd → slug direction: slug → cwd is ambiguous for directory names
+    containing '-' ('ae-aaic-work' would wrongly become 'ae/aaic/work').
+    When several processes share the cwd, pick the oldest (the long-lived
+    window, not a transient -p child).
+    """
+    slug = os.path.basename(os.path.dirname(sess_file))
+    r = subprocess.run(["pgrep", "-f", proc_regex],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    best: tuple[int, bool, int] | None = None  # pid, is_print, age_s
+    for pid_s in r.stdout.split():
+        if not pid_s.isdigit() or int(pid_s) == os.getpid():
+            continue
+        lo = subprocess.run(["lsof", "-a", "-p", pid_s, "-d", "cwd", "-Fn"],
+                            capture_output=True, text=True)
+        cwd = next((l[1:] for l in lo.stdout.splitlines() if l.startswith("n")), "")
+        if not cwd or cwd.rstrip("/").replace("/", "-") != slug:
+            continue
+        cmd = subprocess.run(["ps", "-o", "command=", "-p", pid_s],
+                             capture_output=True, text=True).stdout.strip()
+        is_print = " -p " in f" {cmd} " or "--print" in cmd
+        et = subprocess.run(["ps", "-o", "etimes=", "-p", pid_s],
+                            capture_output=True, text=True).stdout.strip()
+        age = int(et) if et.isdigit() else 0
+        if best is None or age > best[2]:
+            best = (int(pid_s), is_print, age)
+    return (best[0], best[1]) if best else None
+
+
+def apply_auto_soft(stalled: list[dict], qoder_home: str, proc_regex: str,
+                    cooldown_min: float) -> None:
+    """Annotate each stalled session with an `action`, sending at most one
+    SIGINT (≈ Esc) per session per cooldown window. Never SIGTERMs."""
+    now = time.time()
+    spath = os.path.join(qoder_home, "cache", "swarm-watchdog-state.json")
+    try:
+        with open(spath) as f:
+            state = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        state = {}
+    for s in stalled:
+        sid = s["session"]
+        last = state.get(sid, {}).get("sigint_at", 0)
+        if now - last < cooldown_min * 60:
+            s["action"] = "escalate(auto-Esc已发仍卡住)"
+            continue
+        host = find_host_pid(s["file"], proc_regex)
+        if host is None:
+            s["action"] = "host-not-found"
+            continue
+        pid, is_print = host
+        try:
+            os.kill(pid, signal.SIGINT)
+        except OSError as exc:
+            s["action"] = f"sigint-failed({exc.strerror or exc})"
+            continue
+        state[sid] = {"sigint_at": now}
+        s["action"] = f"sigint-sent(pid={pid},mode={'print' if is_print else 'tui'})"
+    live = {s["session"] for s in stalled}
+    state = {k: v for k, v in state.items()
+             if k in live or now - v.get("sigint_at", 0) < 86400}
+    try:
+        os.makedirs(os.path.dirname(spath), exist_ok=True)
+        with open(spath, "w") as f:
+            json.dump(state, f)
+    except OSError:
+        pass
+
+
 def notify(stalled: list[dict]) -> None:
     agents = sum(1 for s in stalled if "Agent" in s["pending_tools"])
     script = (
@@ -177,11 +259,22 @@ def write_flag(path: str, stalled: list[dict]) -> None:
         except FileNotFoundError:
             pass
         return
-    lines = [
-        f"session={s['session']} silent={s['silent_min']}m "
-        f"pending={','.join(s['pending_tools'])} file={s['file']}"
-        for s in stalled
-    ]
+    lines = []
+    for s in stalled:
+        line = (f"session={s['session']} silent={s['silent_min']}m "
+                f"pending={','.join(s['pending_tools'])} file={s['file']}")
+        if s.get("action"):
+            line += f" action={s['action']}"
+        lines.append(line)
+    actions = {s.get("action", "") for s in stalled}
+    if any(a.startswith("sigint-sent") for a in actions):
+        lines.append("已自动按 Esc (SIGINT): 切到该会话输入「继续」或重新派发任务即可, TUI 未受影响。")
+    if any(a.startswith("escalate") for a in actions):
+        lines.append("自动 Esc 后仍卡住: 需手动处理 (到该会话按 Esc 后重开窗口/重派任务)。")
+    if any(a == "host-not-found" or a.startswith("sigint-failed") for a in actions):
+        lines.append("未能自动中断 (宿主进程未找到/信号失败): 请手动检查该会话窗口。")
+    if all(not a for a in actions):
+        lines.append("处理: 到对应会话按 Esc 中断挂起的调用, 然后把任务重新派发给新 agent (不要等旧的)。")
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -196,6 +289,14 @@ def main() -> int:
                    help="write alert flag for swarm-hang-notifier.sh (cron use); removed when clean")
     p.add_argument("--no-process-check", action="store_true",
                    help="skip the qodercli-alive check (testing, cron on remote hosts)")
+    p.add_argument("--auto-soft", action="store_true",
+                   help="send ONE SIGINT (≈ Esc) to the stalled session's host CLI; "
+                        "cooldown-guarded, escalates instead of repeating. Never SIGTERMs")
+    p.add_argument("--soft-cooldown-min", type=float, default=120,
+                   help="minutes before a session may be SIGINTed again (default: 120)")
+    p.add_argument("--proc-regex", default=os.environ.get("SWARM_WATCHDOG_PROC_REGEX", "qodercli"),
+                   help="pgrep -f pattern for host CLIs (default: qodercli; "
+                        "env SWARM_WATCHDOG_PROC_REGEX, override for testing)")
     args = p.parse_args()
 
     process_start = None if args.no_process_check else oldest_qodercli_start()
@@ -205,6 +306,10 @@ def main() -> int:
     else:
         stalled = find_stalled(args.qoder_home, args.threshold, process_start)
 
+    if args.auto_soft and stalled:
+        apply_auto_soft(stalled, args.qoder_home, args.proc_regex,
+                        args.soft_cooldown_min)
+
     if args.write_flag:
         write_flag(args.write_flag, stalled)
 
@@ -213,8 +318,9 @@ def main() -> int:
     else:
         for s in stalled:
             subs = ", ".join(f"{a['agent']}({a['silent_min']}m)" for a in s["subagents"]) or "n/a"
+            action = f" action={s['action']}" if s.get("action") else ""
             print(f"STALLED session={s['session']} silent={s['silent_min']}m "
-                  f"pending={','.join(s['pending_tools'])} subagents: {subs}")
+                  f"pending={','.join(s['pending_tools'])} subagents: {subs}{action}")
         if stalled:
             print("Hint: a hung stream does not recover. Interrupt the session, "
                   "then re-dispatch the task as a fresh agent.", file=sys.stderr)

@@ -420,6 +420,72 @@ rm -f "$NFLAG"
 
 # ─────────────────────────────────────────────────────────────────────
 echo ""
+echo "[7.8/8] swarm-watchdog.py --auto-soft (SIGINT ≈ Esc, cooldown-guarded)"
+# ─────────────────────────────────────────────────────────────────────
+# Fake host CLI: a bash script whose cwd is the stalled session's project.
+# The watchdog must match it (cwd → slug direction), deliver exactly ONE
+# SIGINT, then escalate instead of re-signalling inside the cooldown.
+SOFT_FIX="$TMP_HOME/wd-soft"
+PROJ_DIR="$SOFT_FIX/real-proj"
+mkdir -p "$PROJ_DIR"
+# lsof reports the PHYSICAL cwd (kernel vnode): /var → /private/var on macOS.
+# The watchdog matches cwd → slug, so the fixture slug must come from pwd -P.
+PROJ_DIR="$(cd "$PROJ_DIR" && pwd -P)"
+SLUG="$(echo "$PROJ_DIR" | tr '/' '-')"
+mkdir -p "$SOFT_FIX/projects/$SLUG"
+python3 - "$SOFT_FIX" "$SLUG" <<'EOF'
+import json, os, sys, time
+base, slug = sys.argv[1], sys.argv[2]
+sess = os.path.join(base, "projects", slug, "s1.jsonl")
+rec = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Agent", "input": {}}]}}
+open(sess, "w").write(json.dumps(rec) + "\n")
+sub = os.path.join(base, "projects", slug, "s1", "subagents", "agent-dead.jsonl")
+os.makedirs(os.path.dirname(sub), exist_ok=True)
+open(sub, "w").write(json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "x"}]}}) + "\n")
+t = time.time() - 120 * 60
+os.utime(sess, (t, t))
+os.utime(sub, (t, t))
+EOF
+FAKE="$SOFT_FIX/swarm-fake-qoder.py"
+cat > "$FAKE" <<EOF
+import signal, time
+def on_int(signum, frame):
+    with open("$SOFT_FIX/sigint.log", "a") as f:
+        f.write("int\n")
+# Explicit handler: background children of a non-interactive shell inherit
+# SIGINT as SIG_IGN, and a bash trap cannot override that. signal.signal can.
+signal.signal(signal.SIGINT, on_int)
+while True:
+    time.sleep(1)
+EOF
+(cd "$PROJ_DIR" && exec python3 "$FAKE") &
+FAKE_PID=$!
+sleep 1
+SFLAG="$SOFT_FIX/hang.flag"
+SOFT_RUN="python3 $WD --qoder-home $SOFT_FIX --threshold 30 --no-process-check --proc-regex swarm-fake-qoder --auto-soft --write-flag $SFLAG"
+expect "auto-soft: stalled session flagged (exit 1)" \
+  "$SOFT_RUN >/dev/null 2>&1; [ \$? -eq 1 ]"
+# trap fires once the fake host's current sleep returns — allow a moment
+for i in 1 2 3 4 5 6; do [ -f "$SOFT_FIX/sigint.log" ] && break; sleep 1; done
+expect "auto-soft: fake host received exactly one SIGINT" \
+  "[ \$(wc -l < $SOFT_FIX/sigint.log 2>/dev/null | tr -d ' ') = 1 ]"
+expect "auto-soft: flag reports sigint-sent with host pid" \
+  "grep -q 'action=sigint-sent(pid=$FAKE_PID' $SFLAG"
+expect "auto-soft: flag carries continue-guidance" \
+  "grep -q '继续' $SFLAG"
+expect "auto-soft: state file records sigint_at" \
+  "python3 -c 'import json;print(json.load(open(\"$SOFT_FIX/cache/swarm-watchdog-state.json\"))[\"s1\"][\"sigint_at\"])' | grep -q '^[0-9]'"
+expect "auto-soft: rerun inside cooldown escalates instead of re-signalling" \
+  "$SOFT_RUN >/dev/null 2>&1; grep -q 'action=escalate' $SFLAG"
+sleep 2
+expect "auto-soft: no second SIGINT during cooldown" \
+  "[ \$(wc -l < $SOFT_FIX/sigint.log | tr -d ' ') = 1 ]"
+kill "$FAKE_PID" 2>/dev/null
+wait "$FAKE_PID" 2>/dev/null
+rm -rf "$SOFT_FIX"
+
+# ─────────────────────────────────────────────────────────────────────
+echo ""
 echo "[8/8] Uninstall round-trip"
 # ─────────────────────────────────────────────────────────────────────
 python3 "$REPO_ROOT/install-settings.py" --qoder-home "$TMP_HOME" --uninstall >/dev/null 2>&1
