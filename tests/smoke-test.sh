@@ -482,6 +482,46 @@ expect "auto-soft: no second SIGINT during cooldown" \
   "[ \$(wc -l < $SOFT_FIX/sigint.log | tr -d ' ') = 1 ]"
 kill "$FAKE_PID" 2>/dev/null
 wait "$FAKE_PID" 2>/dev/null
+
+# ─── host binding: ambiguity must NOT signal, --resume sid must hit ───
+# Fake hosts share the same project cwd. With two plain candidates the
+# watchdog must refuse to guess (fail-safe); adding a --resume <sid>
+# cmdline alongside a plain one is decisive and must hit exactly that one.
+rm -f "$SOFT_FIX/cache/swarm-watchdog-state.json"
+# Script name must contain the --proc-regex token: pgrep -f matches the full
+# cmdline, and fake hosts are discovered by that regex.
+cat > "$SOFT_FIX/swarm-fake-qoder-2.py" <<EOF
+import signal, sys, time
+def on_int(signum, frame):
+    with open(sys.argv[1], "a") as f:
+        f.write("int\n")
+signal.signal(signal.SIGINT, on_int)
+while True:
+    time.sleep(1)
+EOF
+(cd "$PROJ_DIR" && exec python3 "$SOFT_FIX/swarm-fake-qoder-2.py" "$SOFT_FIX/sigint-a.log") &
+PID_A=$!
+(cd "$PROJ_DIR" && exec python3 "$SOFT_FIX/swarm-fake-qoder-2.py" "$SOFT_FIX/sigint-b.log") &
+PID_B=$!
+sleep 1
+expect "binding: ambiguous hosts → fail-safe, zero signals" \
+  "$SOFT_RUN >/dev/null 2>&1; grep -q 'action=host-ambiguous' $SFLAG && [ ! -f $SOFT_FIX/sigint-a.log ] && [ ! -f $SOFT_FIX/sigint-b.log ]"
+expect "binding: ambiguous flag carries manual guidance" \
+  "grep -q '多个 qodercli 窗口' $SFLAG"
+# Swap B for a --resume <sid> host: candidates {A plain, C resumed} → C decisive.
+kill "$PID_B" 2>/dev/null; wait "$PID_B" 2>/dev/null
+(cd "$PROJ_DIR" && exec python3 "$SOFT_FIX/swarm-fake-qoder-2.py" "$SOFT_FIX/sigint-c.log" -r s1) &
+PID_C=$!
+sleep 1
+expect "binding: --resume <sid> hits exactly that host" \
+  "$SOFT_RUN >/dev/null 2>&1; grep -q \"action=sigint-sent(pid=$PID_C\" $SFLAG"
+for i in 1 2 3 4 5 6; do [ -f "$SOFT_FIX/sigint-c.log" ] && break; sleep 1; done
+expect "binding: resumed host received the SIGINT" \
+  "[ \$(wc -l < $SOFT_FIX/sigint-c.log 2>/dev/null | tr -d ' ') = 1 ]"
+expect "binding: plain host untouched" \
+  "[ ! -f $SOFT_FIX/sigint-a.log ]"
+kill "$PID_A" "$PID_C" 2>/dev/null
+wait "$PID_A" "$PID_C" 2>/dev/null
 rm -rf "$SOFT_FIX"
 
 # ─────────────────────────────────────────────────────────────────────

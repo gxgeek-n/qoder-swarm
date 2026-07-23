@@ -55,6 +55,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -163,21 +164,35 @@ def oldest_qodercli_start() -> float | None:
     return time.time() - max(ages)
 
 
-def find_host_pid(sess_file: str, proc_regex: str) -> tuple[int, bool] | None:
-    """(pid, is_print_mode) of the CLI hosting this session, None if not found.
+def find_host_pid(sess_file: str, proc_regex: str) -> tuple[str, int, bool]:
+    """Locate the CLI hosting this session. Returns (status, pid, is_print):
+      ("ok", pid, is_print)  — uniquely bound
+      ("ambiguous", n, _)    — n > 1 same-project candidates, none decisive
+      ("none", 0, _)         — no live CLI matches the project dir
+
+    Binding chain (decisive first):
+      1. cmdline carries `--resume/-r <session-id>` → direct hit
+      2. exactly one candidate after pruning those started AFTER the
+         session file was created (st_birthtime) → unique host
+      3. otherwise ambiguous — fail safe, never signal a guess
 
     A session's projects-dir name is the host cwd with '/' → '-'. Match in
     the cwd → slug direction: slug → cwd is ambiguous for directory names
     containing '-' ('ae-aaic-work' would wrongly become 'ae/aaic/work').
-    When several processes share the cwd, pick the oldest (the long-lived
-    window, not a transient -p child).
+    No stronger binding exists: qodercli holds no transcript handle and
+    exports no session env (verified 2026-07-23).
     """
     slug = os.path.basename(os.path.dirname(sess_file))
+    sid = os.path.basename(sess_file)[: -len(".jsonl")]
     r = subprocess.run(["pgrep", "-f", proc_regex],
                        capture_output=True, text=True)
     if r.returncode != 0:
-        return None
-    best: tuple[int, bool, int] | None = None  # pid, is_print, age_s
+        return ("none", 0, False)
+    try:
+        born = os.stat(sess_file).st_birthtime
+    except (AttributeError, OSError):
+        born = None
+    candidates = []
     for pid_s in r.stdout.split():
         if not pid_s.isdigit() or int(pid_s) == os.getpid():
             continue
@@ -188,13 +203,25 @@ def find_host_pid(sess_file: str, proc_regex: str) -> tuple[int, bool] | None:
             continue
         cmd = subprocess.run(["ps", "-o", "command=", "-p", pid_s],
                              capture_output=True, text=True).stdout.strip()
-        is_print = " -p " in f" {cmd} " or "--print" in cmd
         et = subprocess.run(["ps", "-o", "etimes=", "-p", pid_s],
                             capture_output=True, text=True).stdout.strip()
-        age = int(et) if et.isdigit() else 0
-        if best is None or age > best[2]:
-            best = (int(pid_s), is_print, age)
-    return (best[0], best[1]) if best else None
+        start = time.time() - (int(et) if et.isdigit() else 0)
+        candidates.append({"pid": int(pid_s), "cmd": cmd, "start": start})
+    if not candidates:
+        return ("none", 0, False)
+    direct = [c for c in candidates
+              if re.search(r"(?:--resume[=\s]|-r\s)" + re.escape(sid) + r"(?![\w-])",
+                           c["cmd"])]
+    pool = direct or candidates
+    if not direct and born is not None:
+        viable = [c for c in pool if c["start"] <= born + 5]
+        if viable:
+            pool = viable
+    if len(pool) > 1:
+        return ("ambiguous", len(pool), False)
+    c = pool[0]
+    is_print = " -p " in f" {c['cmd']} " or "--print" in c["cmd"]
+    return ("ok", c["pid"], is_print)
 
 
 def apply_auto_soft(stalled: list[dict], qoder_home: str, proc_regex: str,
@@ -214,11 +241,14 @@ def apply_auto_soft(stalled: list[dict], qoder_home: str, proc_regex: str,
         if now - last < cooldown_min * 60:
             s["action"] = "escalate(auto-Esc已发仍卡住)"
             continue
-        host = find_host_pid(s["file"], proc_regex)
-        if host is None:
+        status, val, is_print = find_host_pid(s["file"], proc_regex)
+        if status == "none":
             s["action"] = "host-not-found"
             continue
-        pid, is_print = host
+        if status == "ambiguous":
+            s["action"] = f"host-ambiguous({val}个同项目窗口)"
+            continue
+        pid = val
         try:
             os.kill(pid, signal.SIGINT)
         except OSError as exc:
@@ -271,6 +301,9 @@ def write_flag(path: str, stalled: list[dict]) -> None:
         lines.append("已自动按 Esc (SIGINT): 切到该会话输入「继续」或重新派发任务即可, TUI 未受影响。")
     if any(a.startswith("escalate") for a in actions):
         lines.append("自动 Esc 后仍卡住: 需手动处理 (到该会话按 Esc 后重开窗口/重派任务)。")
+    if any(a.startswith("host-ambiguous") for a in actions):
+        lines.append("同项目开了多个 qodercli 窗口, 无法确定挂死宿主, 未自动中断: "
+                     "请按 file= 路径找到对应会话窗口手动按 Esc。")
     if any(a == "host-not-found" or a.startswith("sigint-failed") for a in actions):
         lines.append("未能自动中断 (宿主进程未找到/信号失败): 请手动检查该会话窗口。")
     if all(not a for a in actions):
